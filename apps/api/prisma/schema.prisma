@@ -1,0 +1,263 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  MANAGER
+  THERAPIST
+  RECEPTIONIST
+  FINANCE
+  PARENT
+}
+
+enum TherapyType {
+  OT
+  SPEECH
+  ABA
+  SENSORY
+  GROUP
+  PSYCH
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  CONFIRMED
+  IN_SESSION
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum GoalTerm {
+  SHORT
+  LONG
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+}
+
+enum PaymentMethod {
+  MPESA
+  BANK_TRANSFER
+  CARD
+  CASH
+  NHIF
+}
+
+model Branch {
+  id        String   @id @default(uuid())
+  name      String
+  location  String
+  phone     String?
+  email     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  clients   Client[]
+  staff     Staff[]
+}
+
+model Client {
+  id           String        @id @default(uuid())
+  fullName     String
+  dob          DateTime
+  gender       String
+  diagnosis    String?
+  coOccurring  String?
+  allergies    String?
+  status       String        @default("ACTIVE")
+  photoUrl     String?
+  referralSrc  String?
+  schoolName   String?
+  branchId     String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  branch       Branch        @relation(fields: [branchId], references: [id])
+  guardians    Guardian[]
+  appointments Appointment[]
+  itps         ITP[]
+  invoices     Invoice[]
+  documents    Document[]
+}
+
+model Guardian {
+  id           String  @id @default(uuid())
+  clientId     String
+  fullName     String
+  relationship String
+  phone        String
+  email        String?
+  isPrimary    Boolean @default(false)
+  portalAccess Boolean @default(false)
+  portalPwHash String?
+  client       Client  @relation(fields: [clientId], references: [id])
+}
+
+model Staff {
+  id           String       @id @default(uuid())
+  fullName     String
+  email        String       @unique
+  role         Role
+  specialty    TherapyType?
+  phone        String?
+  pwHash       String
+  totpSecret   String?
+  twoFaEnabled Boolean      @default(false)
+  isActive     Boolean      @default(true)
+  branchId     String
+  createdAt    DateTime     @default(now())
+  branch       Branch       @relation(fields: [branchId], references: [id])
+  appointments Appointment[]
+  sessions     SessionNote[]
+  auditLogs    AuditLog[]
+}
+
+model Appointment {
+  id          String            @id @default(uuid())
+  clientId    String
+  therapistId String
+  scheduledAt DateTime
+  durationMin Int               @default(50)
+  therapyType TherapyType
+  status      AppointmentStatus @default(SCHEDULED)
+  isRecurring Boolean           @default(false)
+  recurRule   String?
+  notes       String?
+  createdAt   DateTime          @default(now())
+  client      Client            @relation(fields: [clientId], references: [id])
+  therapist   Staff             @relation(fields: [therapistId], references: [id])
+  sessionNote SessionNote?
+}
+
+model SessionNote {
+  id            String      @id @default(uuid())
+  appointmentId String      @unique
+  authorId      String
+  subjective    String?
+  objective     String?
+  assessment    String?
+  plan          String?
+  behaviourObs  String[]
+  goalsWorked   String[]
+  signatureData String?
+  signedAt      DateTime?
+  isLocked      Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+  appointment   Appointment  @relation(fields: [appointmentId], references: [id])
+  author        Staff        @relation(fields: [authorId], references: [id])
+  attachments   Document[]
+}
+
+model ITP {
+  id          String    @id @default(uuid())
+  clientId    String
+  version     Int       @default(1)
+  status      String    @default("ACTIVE")
+  reviewDate  DateTime?
+  createdById String
+  createdAt   DateTime  @default(now())
+  client      Client    @relation(fields: [clientId], references: [id])
+  goals       Goal[]
+}
+
+model Goal {
+  id           String            @id @default(uuid())
+  itpId        String
+  title        String
+  description  String?
+  term         GoalTerm
+  therapyType  TherapyType
+  progressPct  Int               @default(0)
+  isAchieved   Boolean           @default(false)
+  achievedAt   DateTime?
+  itp          ITP               @relation(fields: [itpId], references: [id])
+  progressLogs GoalProgressLog[]
+}
+
+model GoalProgressLog {
+  id         String   @id @default(uuid())
+  goalId     String
+  pct        Int
+  note       String?
+  loggedById String
+  loggedAt   DateTime @default(now())
+  goal       Goal     @relation(fields: [goalId], references: [id])
+}
+
+model Invoice {
+  id        String        @id @default(uuid())
+  clientId  String
+  number    String        @unique
+  amountKes Decimal       @db.Decimal(12, 2)
+  status    InvoiceStatus @default(DRAFT)
+  dueDate   DateTime?
+  issuedAt  DateTime?
+  paidAt    DateTime?
+  notes     String?
+  createdAt DateTime      @default(now())
+  client    Client        @relation(fields: [clientId], references: [id])
+  lineItems InvoiceItem[]
+  payments  Payment[]
+}
+
+model InvoiceItem {
+  id          String  @id @default(uuid())
+  invoiceId   String
+  description String
+  quantity    Int     @default(1)
+  unitPrice   Decimal @db.Decimal(10, 2)
+  invoice     Invoice @relation(fields: [invoiceId], references: [id])
+}
+
+model Payment {
+  id         String        @id @default(uuid())
+  invoiceId  String
+  amountKes  Decimal       @db.Decimal(12, 2)
+  method     PaymentMethod
+  mpesaRef   String?
+  mpesaPhone String?
+  paidAt     DateTime      @default(now())
+  recordedBy String?
+  invoice    Invoice       @relation(fields: [invoiceId], references: [id])
+}
+
+model Document {
+  id            String       @id @default(uuid())
+  clientId      String?
+  sessionNoteId String?
+  name          String
+  fileKey       String
+  mimeType      String
+  sizeBytes     Int
+  uploadedById  String
+  uploadedAt    DateTime     @default(now())
+  isConsent     Boolean      @default(false)
+  version       Int          @default(1)
+  client        Client?      @relation(fields: [clientId], references: [id])
+  sessionNote   SessionNote? @relation(fields: [sessionNoteId], references: [id])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  staffId   String
+  action    String
+  entity    String
+  entityId  String
+  ipAddress String?
+  userAgent String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+  staff     Staff    @relation(fields: [staffId], references: [id])
+
+  @@index([entity, entityId])
+  @@index([staffId, createdAt])
+}
