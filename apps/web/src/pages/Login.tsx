@@ -2,6 +2,11 @@ import { useState } from 'react'
 import api from '../lib/api'
 import { useAuthStore } from '../stores/auth.store'
 
+function errorMessage(err: unknown, fallback: string) {
+  const response = (err as { response?: { data?: { message?: string; error?: string } } }).response
+  return response?.data?.message ?? response?.data?.error ?? fallback
+}
+
 export default function Login() {
   const login = useAuthStore((s) => s.login)
   const [email, setEmail] = useState('')
@@ -18,8 +23,8 @@ export default function Login() {
       const { accessToken, refreshToken, user } = res.data
       login(user, accessToken, refreshToken)
       window.location.href = '/dashboard'
-    } catch (err: any) {
-      setError(err.response?.data?.message ?? 'Login failed. Please try again.')
+    } catch (err: unknown) {
+      setError(errorMessage(err, 'Login failed. Please try again.'))
     } finally {
       setLoading(false)
     }

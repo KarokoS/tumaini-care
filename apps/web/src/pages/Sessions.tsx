@@ -1,12 +1,31 @@
 import { useEffect, useState } from "react"
+import Layout from "../components/Layout"
 import api from "../lib/api"
 
-const NAV = [["Dashboard","/dashboard"],["Clients","/clients"],["Schedule","/schedule"],["Sessions","/sessions"],["Therapy Plans","/plans"],["Billing","/billing"],["Staff","/staff"],["Reports","/reports"]]
+type Appointment = {
+  id: string
+  scheduledAt: string
+  therapyType: string
+  status: string
+  client?: { fullName: string } | null
+  therapist?: { fullName: string } | null
+  sessionNote?: {
+    subjective?: string | null
+    objective?: string | null
+    assessment?: string | null
+    plan?: string | null
+  } | null
+}
+
+function errorMessage(err: unknown, fallback: string) {
+  const response = (err as { response?: { data?: { message?: string; error?: string } } }).response
+  return response?.data?.message ?? response?.data?.error ?? fallback
+}
 
 export default function Sessions() {
-  const [appointments, setAppointments] = useState<any[]>([])
+  const [appointments, setAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
-  const [selected, setSelected] = useState<any>(null)
+  const [selected, setSelected] = useState<Appointment | null>(null)
   const [showNote, setShowNote] = useState(false)
   const [saving, setSaving] = useState(false)
   const [subjective, setSubjective] = useState("")
@@ -17,12 +36,12 @@ export default function Sessions() {
   useEffect(() => { loadData() }, [])
 
   function loadData() {
-    api.get("/appointments").catch(() => ({ data:[] }))
-      .then((r:any) => setAppointments(r.data))
+    api.get<Appointment[]>("/appointments").catch(() => ({ data: [] as Appointment[] }))
+      .then(r => setAppointments(r.data))
       .finally(() => setLoading(false))
   }
 
-  function openNote(appt: any) {
+  function openNote(appt: Appointment) {
     setSelected(appt)
     setSubjective(appt.sessionNote?.subjective || "")
     setObjective(appt.sessionNote?.objective || "")
@@ -41,34 +60,14 @@ export default function Sessions() {
       })
       setShowNote(false)
       loadData()
-    } catch(err: any) {
-      alert(err.response?.data?.message ?? "Failed to save note")
+    } catch(err: unknown) {
+      alert(errorMessage(err, "Failed to save note"))
     } finally { setSaving(false) }
   }
 
-  const path = window.location.pathname
-
   return (
-    <div style={{ display:"flex", minHeight:"100vh", background:"#f4f7f5" }}>
-      <aside style={{ width:224, background:"white", borderRight:"1px solid #d6e8e0", position:"fixed", top:0, left:0, height:"100%", display:"flex", flexDirection:"column" }}>
-        <div style={{ padding:20, borderBottom:"1px solid #d6e8e0", display:"flex", alignItems:"center", gap:10 }}>
-          <div style={{ width:32, height:32, background:"#1a8c6e", borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center", color:"white", fontWeight:"bold" }}>T</div>
-          <div>
-            <div style={{ fontSize:13, fontWeight:600, color:"#1a8c6e" }}>Tumaini</div>
-            <div style={{ fontSize:10, color:"#8aab9e" }}>St. Thorlak Centre</div>
-          </div>
-        </div>
-        <nav style={{ flex:1, padding:12 }}>
-          {NAV.map((item, idx) => {
-            const active = path === item[1]
-            return <a key={idx} href={item[1]} style={{ display:"block", padding:"9px 12px", borderRadius:8, fontSize:13, color:active?"#1a8c6e":"#4a6359", background:active?"#e6f4ef":"transparent", fontWeight:active?600:400, textDecoration:"none", marginBottom:2 }}>{item[0]}</a>
-          })}
-        </nav>
-      </aside>
-
-      <main style={{ marginLeft:224, flex:1, padding:24 }}>
+    <Layout title="Sessions">
         <div style={{ marginBottom:20 }}>
-          <h1 style={{ fontSize:20, fontWeight:600, color:"#1a2724", margin:0 }}>Sessions</h1>
           <p style={{ fontSize:13, color:"#8aab9e", margin:"4px 0 0" }}>{appointments.length} appointments total</p>
         </div>
 
@@ -133,8 +132,6 @@ export default function Sessions() {
             </table>
           </div>
         )}
-      </main>
-
       {showNote && selected && (
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:100 }}>
           <div style={{ background:"white", borderRadius:16, padding:28, width:600, maxHeight:"90vh", overflowY:"auto" }}>
@@ -170,6 +167,6 @@ export default function Sessions() {
           </div>
         </div>
       )}
-    </div>
+    </Layout>
   )
 }

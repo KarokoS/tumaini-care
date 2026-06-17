@@ -1,120 +1,206 @@
-import { useEffect, useState } from 'react'
-import api from '../lib/api'
-import { useAuthStore } from '../stores/auth.store'
+import { useEffect, useState } from "react"
+import api from "../lib/api"
+import { useAuthStore } from "../stores/auth.store"
+import Layout from "../components/Layout"
+
+type Client = { fullName: string; status: string; createdAt: string }
+type Appointment = {
+  scheduledAt: string
+  therapyType: string
+  status: string
+  client?: { fullName: string } | null
+  therapist?: { fullName: string } | null
+}
+type Invoice = { status: string }
+type Goal = { title: string; progressPct: number }
+type Plan = { reviewDate?: string | null; goals?: Goal[] }
+type ApiList<T> = { data: T[] }
 
 export default function Dashboard() {
-  const { user, logout } = useAuthStore()
-  const [clients, setClients] = useState<any[]>([])
+  useAuthStore()
+  const [clients, setClients] = useState<Client[]>([])
+  const [appointments, setAppointments] = useState<Appointment[]>([])
+  const [invoices, setInvoices] = useState<Invoice[]>([])
+  const [plans, setPlans] = useState<Plan[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    api.get('/clients')
-      .then(res => setClients(res.data))
-      .catch(console.error)
-      .finally(() => setLoading(false))
+    Promise.all([
+      api.get<Client[]>("/clients").catch((): ApiList<Client> => ({ data:[] })),
+      api.get<Appointment[]>("/appointments").catch((): ApiList<Appointment> => ({ data:[] })),
+      api.get<Invoice[]>("/invoices").catch((): ApiList<Invoice> => ({ data:[] })),
+      api.get<Plan[]>("/itps").catch((): ApiList<Plan> => ({ data:[] })),
+    ]).then(([c,a,inv,p]) => {
+      setClients(c.data)
+      setAppointments(a.data)
+      setInvoices(inv.data)
+      setPlans(p.data)
+    }).finally(() => setLoading(false))
   }, [])
 
+  const today = new Date()
+  const todayStr = today.toDateString()
+  const todayAppts = appointments.filter(a => new Date(a.scheduledAt).toDateString() === todayStr)
+  const pendingInvoices = invoices.filter(i => i.status !== "PAID")
+  const activeClients = clients.filter(c => c.status === "ACTIVE")
+  const allGoals = plans.flatMap(p => p.goals || [])
+
+  const COLORS: Record<string,string> = { OT:"#3b82f6", SPEECH:"#22c55e", ABA:"#a855f7", SENSORY:"#f97316", GROUP:"#eab308", PSYCH:"#ec4899" }
+
+  const stats = [
+    { label:"Active Clients", value: activeClients.length, color:"#1a8c6e", sub:"registered" },
+    { label:"Sessions Today", value: todayAppts.length, color:"#2563a8", sub:"scheduled" },
+    { label:"Pending Invoices", value: pendingInvoices.length, color:"#d97706", sub:"awaiting payment" },
+    { label:"Active Plans", value: plans.length, color:"#d63f5c", sub:"therapy plans" },
+  ]
+
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#f4f7f5' }}>
-
-      <aside style={{ width: 224, background: 'white', borderRight: '1px solid #d6e8e0', display: 'flex', flexDirection: 'column', position: 'fixed', top: 0, left: 0, height: '100%' }}>
-        <div style={{ padding: 20, borderBottom: '1px solid #d6e8e0', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 32, height: 32, background: '#1a8c6e', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold' }}>T</div>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#1a8c6e' }}>Tumaini</div>
-            <div style={{ fontSize: 10, color: '#8aab9e' }}>St. Thorlak Centre</div>
+    <Layout title="Dashboard">
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:14, marginBottom:20 }}>
+        {stats.map((s, i) => (
+          <div key={i} style={{ background:"white", border:"1px solid #d6e8e0", borderRadius:16, padding:"18px 20px", position:"relative", overflow:"hidden", cursor:"pointer" }}>
+            <div style={{ position:"absolute", top:0, right:0, width:60, height:60, borderRadius:"0 16px 0 100%", background:s.color, opacity:0.06 }}></div>
+            <div style={{ fontSize:11.5, fontWeight:500, color:"#8aab9e", textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:6 }}>{s.label}</div>
+            <div style={{ fontSize:28, fontWeight:600, color:s.color, lineHeight:1, marginBottom:4 }}>{loading ? "..." : s.value}</div>
+            <div style={{ fontSize:11.5, color:"#8aab9e" }}>{s.sub}</div>
           </div>
-        </div>
+        ))}
+      </div>
 
-        <nav style={{ flex: 1, padding: 12 }}>
-          <a href="/dashboard" style={{ display: 'block', padding: '9px 12px', borderRadius: 8, fontSize: 13, color: '#1a8c6e', background: '#e6f4ef', fontWeight: 600, textDecoration: 'none', marginBottom: 2 }}>Dashboard</a>
-          <a href="/clients" style={{ display: 'block', padding: '9px 12px', borderRadius: 8, fontSize: 13, color: '#4a6359', textDecoration: 'none', marginBottom: 2 }}>Clients</a>
-          <a href="/schedule" style={{ display: 'block', padding: '9px 12px', borderRadius: 8, fontSize: 13, color: '#4a6359', textDecoration: 'none', marginBottom: 2 }}>Schedule</a>
-          <a href="/sessions" style={{ display: 'block', padding: '9px 12px', borderRadius: 8, fontSize: 13, color: '#4a6359', textDecoration: 'none', marginBottom: 2 }}>Sessions</a>
-          <a href="/plans" style={{ display: 'block', padding: '9px 12px', borderRadius: 8, fontSize: 13, color: '#4a6359', textDecoration: 'none', marginBottom: 2 }}>Therapy Plans</a>
-          <a href="/billing" style={{ display: 'block', padding: '9px 12px', borderRadius: 8, fontSize: 13, color: '#4a6359', textDecoration: 'none', marginBottom: 2 }}>Billing</a>
-          <a href="/staff" style={{ display: 'block', padding: '9px 12px', borderRadius: 8, fontSize: 13, color: '#4a6359', textDecoration: 'none', marginBottom: 2 }}>Staff</a>
-          <a href="/reports" style={{ display: 'block', padding: '9px 12px', borderRadius: 8, fontSize: 13, color: '#4a6359', textDecoration: 'none', marginBottom: 2 }}>Reports</a>
-        </nav>
-
-        <div style={{ padding: 16, borderTop: '1px solid #d6e8e0' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-            <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#1a8c6e', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 12, fontWeight: 600 }}>
-              {user?.fullName?.charAt(0) ?? 'U'}
-            </div>
+      <div style={{ display:"grid", gridTemplateColumns:"2fr 1fr", gap:14, marginBottom:14 }}>
+        <div style={{ background:"white", border:"1px solid #d6e8e0", borderRadius:16, overflow:"hidden" }}>
+          <div style={{ padding:"14px 18px", borderBottom:"1px solid #d6e8e0", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
             <div>
-              <div style={{ fontSize: 12, fontWeight: 500, color: '#1a2724' }}>{user?.fullName}</div>
-              <div style={{ fontSize: 10, color: '#8aab9e' }}>{user?.role}</div>
+              <div style={{ fontSize:13.5, fontWeight:600, color:"#1a2724" }}>Today's Appointments — {today.toLocaleDateString("en-KE",{ weekday:"short", day:"numeric", month:"short" })}</div>
+              <div style={{ fontSize:11.5, color:"#8aab9e", marginTop:1 }}>{todayAppts.length} scheduled</div>
             </div>
+            <a href="/schedule" style={{ fontSize:11.5, color:"#1a8c6e", fontWeight:500, textDecoration:"none" }}>View schedule →</a>
           </div>
-          <button onClick={logout} style={{ width: '100%', fontSize: 12, color: '#d63f5c', padding: '6px 8px', borderRadius: 8, border: 'none', background: '#fde8ed', cursor: 'pointer', textAlign: 'left' }}>
-            Sign out
-          </button>
-        </div>
-      </aside>
-
-      <main style={{ marginLeft: 224, flex: 1, padding: 24 }}>
-        <div style={{ marginBottom: 24 }}>
-          <h1 style={{ fontSize: 20, fontWeight: 600, color: '#1a2724', margin: 0 }}>
-            Good morning, {user?.fullName?.split(' ')[0]}
-          </h1>
-          <p style={{ fontSize: 13, color: '#4a6359', marginTop: 4, marginBottom: 0 }}>
-            {new Date().toLocaleDateString('en-KE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-          </p>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 24 }}>
-          <div style={{ background: 'white', borderRadius: 12, border: '1px solid #d6e8e0', padding: 16 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: '#8aab9e', textTransform: 'uppercase', marginBottom: 8 }}>Active Clients</div>
-            <div style={{ fontSize: 28, fontWeight: 600, color: '#1a8c6e' }}>{loading ? '...' : clients.filter(c => c.status === 'ACTIVE').length}</div>
-          </div>
-          <div style={{ background: 'white', borderRadius: 12, border: '1px solid #d6e8e0', padding: 16 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: '#8aab9e', textTransform: 'uppercase', marginBottom: 8 }}>Total Clients</div>
-            <div style={{ fontSize: 28, fontWeight: 600, color: '#2563a8' }}>{loading ? '...' : clients.length}</div>
-          </div>
-          <div style={{ background: 'white', borderRadius: 12, border: '1px solid #d6e8e0', padding: 16 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: '#8aab9e', textTransform: 'uppercase', marginBottom: 8 }}>Sessions Today</div>
-            <div style={{ fontSize: 28, fontWeight: 600, color: '#d97706' }}>0</div>
-          </div>
-          <div style={{ background: 'white', borderRadius: 12, border: '1px solid #d6e8e0', padding: 16 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: '#8aab9e', textTransform: 'uppercase', marginBottom: 8 }}>Pending Invoices</div>
-            <div style={{ fontSize: 28, fontWeight: 600, color: '#d63f5c' }}>0</div>
+          <div style={{ padding:"0 18px" }}>
+            {loading ? (
+              <div style={{ padding:24, textAlign:"center", color:"#8aab9e" }}>Loading...</div>
+            ) : todayAppts.length === 0 ? (
+              <div style={{ padding:24, textAlign:"center", color:"#8aab9e", fontSize:13 }}>No appointments today</div>
+            ) : todayAppts.map((a, i) => {
+              const d = new Date(a.scheduledAt)
+              const color = COLORS[a.therapyType] ?? "#888"
+              return (
+                <div key={i} style={{ display:"flex", alignItems:"center", gap:12, padding:"9px 0", borderBottom: i<todayAppts.length-1?"1px solid #f0f4f2":"none" }}>
+                  <div style={{ fontSize:11, fontWeight:600, color:"#8aab9e", width:44, textAlign:"right", flexShrink:0 }}>{d.toLocaleTimeString("en-KE",{ hour:"2-digit", minute:"2-digit" })}</div>
+                  <div style={{ width:8, height:8, borderRadius:"50%", background:color, flexShrink:0 }}></div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontSize:13, fontWeight:500, color:"#1a2724" }}>{a.client ? a.client.fullName : "Client"}</div>
+                    <div style={{ fontSize:11.5, color:"#8aab9e" }}>{a.therapyType} · {a.therapist ? a.therapist.fullName : ""}</div>
+                  </div>
+                  <span style={{ fontSize:10.5, padding:"2px 8px", borderRadius:20, background:color+"22", color:color, fontWeight:600 }}>{a.therapyType}</span>
+                  <span style={{ fontSize:10.5, padding:"2px 8px", borderRadius:20, background:a.status==="COMPLETED"?"#e6f4ef":"#fef3c7", color:a.status==="COMPLETED"?"#1a8c6e":"#d97706", fontWeight:600 }}>{a.status}</span>
+                </div>
+              )
+            })}
           </div>
         </div>
 
-        <div style={{ background: 'white', borderRadius: 12, border: '1px solid #d6e8e0', overflow: 'hidden' }}>
-          <div style={{ padding: '16px 20px', borderBottom: '1px solid #d6e8e0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#1a2724' }}>Recent Clients</div>
-              <div style={{ fontSize: 11, color: '#8aab9e', marginTop: 2 }}>{clients.length} registered</div>
+        <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+          <div style={{ background:"white", border:"1px solid #d6e8e0", borderRadius:16, overflow:"hidden" }}>
+            <div style={{ padding:"14px 18px", borderBottom:"1px solid #d6e8e0" }}>
+              <div style={{ fontSize:13.5, fontWeight:600, color:"#1a2724" }}>{today.toLocaleDateString("en-KE",{ month:"long", year:"numeric" })}</div>
             </div>
-            <a href="/clients" style={{ fontSize: 12, color: '#1a8c6e', fontWeight: 500 }}>View all</a>
-          </div>
-
-          {loading && (
-            <div style={{ padding: 32, textAlign: 'center', color: '#8aab9e', fontSize: 13 }}>Loading...</div>
-          )}
-
-          {!loading && clients.slice(0, 5).map(client => (
-            <div
-              key={client.id}
-              onClick={() => { window.location.href = '/clients/' + client.id }}
-              style={{ padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid #f0f4f2', cursor: 'pointer' }}
-            >
-              <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#e6f4ef', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1a8c6e', fontSize: 12, fontWeight: 600, flexShrink: 0 }}>
-                {client.fullName.charAt(0)}
+            <div style={{ padding:"14px 18px" }}>
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:3, textAlign:"center", marginBottom:4 }}>
+                {["S","M","T","W","T","F","S"].map((d,i) => <div key={i} style={{ fontSize:10, color:"#8aab9e", fontWeight:600, padding:"3px 0" }}>{d}</div>)}
               </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 500, color: '#1a2724' }}>{client.fullName}</div>
-                <div style={{ fontSize: 11, color: '#8aab9e' }}>{client.diagnosis ?? 'No diagnosis recorded'}</div>
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:3, textAlign:"center" }}>
+                {Array.from({ length:35 }, (_, i) => {
+                  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1).getDay()
+                  const day = i - firstDay + 1
+                  const daysInMonth = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate()
+                  const isToday = day === today.getDate()
+                  const valid = day >= 1 && day <= daysInMonth
+                  const hasAppt = valid && appointments.some(a => new Date(a.scheduledAt).getDate() === day && new Date(a.scheduledAt).getMonth() === today.getMonth())
+                  return (
+                    <div key={i} style={{ fontSize:12, padding:"5px 2px", borderRadius:6, cursor:valid?"pointer":"default", background:isToday?"#1a8c6e":"transparent", color:isToday?"white":valid?"#1a2724":"#d6e8e0", fontWeight:isToday?600:400, position:"relative" }}>
+                      {valid ? day : ""}
+                      {hasAppt && !isToday && <div style={{ position:"absolute", bottom:1, left:"50%", transform:"translateX(-50%)", width:4, height:4, background:"#1a8c6e", borderRadius:"50%" }}></div>}
+                    </div>
+                  )
+                })}
               </div>
-              <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: client.status === 'ACTIVE' ? '#e6f4ef' : '#f0f4f2', color: client.status === 'ACTIVE' ? '#1a8c6e' : '#8aab9e' }}>
-                {client.status}
-              </span>
             </div>
-          ))}
+          </div>
+
+          <div style={{ background:"white", border:"1px solid #d6e8e0", borderRadius:16, overflow:"hidden" }}>
+            <div style={{ padding:"14px 18px", borderBottom:"1px solid #d6e8e0", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <div style={{ fontSize:13.5, fontWeight:600, color:"#1a2724" }}>ITP Goals</div>
+              <a href="/plans" style={{ fontSize:11.5, color:"#1a8c6e", fontWeight:500, textDecoration:"none" }}>See all →</a>
+            </div>
+            <div style={{ padding:"12px 18px" }}>
+              {allGoals.length === 0 ? (
+                <div style={{ fontSize:13, color:"#8aab9e", textAlign:"center", padding:"8px 0" }}>No goals yet</div>
+              ) : allGoals.slice(0,4).map((g, i) => (
+                <div key={i} style={{ marginBottom:10 }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", fontSize:12.5, marginBottom:4 }}>
+                    <span style={{ color:"#1a2724", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:"70%" }}>{g.title}</span>
+                    <span style={{ fontWeight:600, color:"#1a8c6e", flexShrink:0 }}>{g.progressPct}%</span>
+                  </div>
+                  <div style={{ height:6, background:"#f0f4f2", borderRadius:20, overflow:"hidden" }}>
+                    <div style={{ height:"100%", width:g.progressPct+"%", background:"#1a8c6e", borderRadius:20 }}></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
-      </main>
-    </div>
+      </div>
+
+      <div style={{ display:"grid", gridTemplateColumns:"2fr 1fr", gap:14 }}>
+        <div style={{ background:"white", border:"1px solid #d6e8e0", borderRadius:16, overflow:"hidden" }}>
+          <div style={{ padding:"14px 18px", borderBottom:"1px solid #d6e8e0" }}>
+            <div style={{ fontSize:13.5, fontWeight:600, color:"#1a2724" }}>Recent Activity</div>
+          </div>
+          <div style={{ padding:"0 18px" }}>
+            {[...clients.slice(0,2).map(c => ({ icon:"👤", text:`${c.fullName} registered as a client`, time: new Date(c.createdAt).toLocaleDateString("en-KE",{ day:"numeric", month:"short" }), bg:"#e6f4ef" })),
+              ...appointments.slice(0,3).map(a => ({ icon:"📅", text:`${a.client ? a.client.fullName : "Client"} — ${a.therapyType} session booked`, time: new Date(a.scheduledAt).toLocaleDateString("en-KE",{ day:"numeric", month:"short" }), bg:"#e8f0fb" }))
+            ].slice(0,5).map((item, i, arr) => (
+              <div key={i} style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 0", borderBottom: i<arr.length-1?"1px solid #f0f4f2":"none" }}>
+                <div style={{ width:28, height:28, borderRadius:8, background:item.bg, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, flexShrink:0 }}>{item.icon}</div>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:12.5, color:"#1a2724", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{item.text}</div>
+                  <div style={{ fontSize:11, color:"#8aab9e", marginTop:2 }}>{item.time}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ background:"white", border:"1px solid #d6e8e0", borderRadius:16, overflow:"hidden" }}>
+          <div style={{ padding:"14px 18px", borderBottom:"1px solid #d6e8e0" }}>
+            <div style={{ fontSize:13.5, fontWeight:600, color:"#1a2724" }}>Alerts</div>
+          </div>
+          <div style={{ padding:"12px 18px", display:"flex", flexDirection:"column", gap:8 }}>
+            {pendingInvoices.length > 0 && (
+              <div style={{ display:"flex", gap:10, padding:"10px 12px", borderRadius:10, background:"#fef3c7" }}>
+                <span>⚠️</span>
+                <div style={{ fontSize:12.5, color:"#92400e" }}>{pendingInvoices.length} invoice{pendingInvoices.length>1?"s":""} pending payment</div>
+              </div>
+            )}
+            {todayAppts.length > 0 && (
+              <div style={{ display:"flex", gap:10, padding:"10px 12px", borderRadius:10, background:"#e8f0fb" }}>
+                <span>📅</span>
+                <div style={{ fontSize:12.5, color:"#1e3a5f" }}>{todayAppts.length} session{todayAppts.length>1?"s":""} scheduled today</div>
+              </div>
+            )}
+            {plans.filter(p => p.reviewDate && new Date(p.reviewDate) < new Date()).length > 0 && (
+              <div style={{ display:"flex", gap:10, padding:"10px 12px", borderRadius:10, background:"#fde8ed" }}>
+                <span>🎯</span>
+                <div style={{ fontSize:12.5, color:"#9b1d3a" }}>ITP review overdue</div>
+              </div>
+            )}
+            {pendingInvoices.length === 0 && todayAppts.length === 0 && (
+              <div style={{ fontSize:13, color:"#8aab9e", textAlign:"center", padding:"12px 0" }}>All clear — no alerts</div>
+            )}
+          </div>
+        </div>
+      </div>
+    </Layout>
   )
 }

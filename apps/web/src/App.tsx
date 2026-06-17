@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from './stores/auth.store'
 import Login from './pages/Login'
@@ -19,14 +19,10 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   const initialize = useAuthStore((s) => s.initialize)
-  const [ready, setReady] = useState(false)
 
   useEffect(() => {
     initialize()
-    setReady(true)
-  }, [])
-
-  if (!ready) return null
+  }, [initialize])
 
   return (
     <BrowserRouter>
