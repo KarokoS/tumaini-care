@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import api from "../lib/api"
 import Layout from "../components/Layout"
+import { generateInvoicePDF, generateFinancialReportPDF } from "../lib/pdf"
 
 export default function Billing() {
   const [invoices, setInvoices] = useState<any[]>([])
@@ -62,6 +63,18 @@ export default function Billing() {
     <Layout title="Billing & Payments" action={
       <button onClick={() => setShowForm(true)} style={{ padding:"8px 16px", borderRadius:8, border:"none", background:"#1a8c6e", color:"white", fontSize:13, fontWeight:500, cursor:"pointer" }}>+ New Invoice</button>
     }>
+      action={
+        <div style={{ display: "flex", gap: 8 }}>
+        <button onClick={() => generateFinancialReportPDF(invoices, "All time")}
+          style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #d6e8e0", background: "white", color: "#4a6359", fontSize: 13, cursor: "pointer" }}
+        >
+          Export PDF
+        </button>
+        <button onClick={() => setShowForm(true)} style={{ padding: "8px 16px", borderRadius: 8, border: "none", background: "#1a8c6e", color: "white", fontSize: 13, fontWeight: 500, cursor: "pointer" }}>
+          + New Invoice
+        </button>
+        </div>
+    }
 
       <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:14, marginBottom:20 }}>
         {[
@@ -121,8 +134,8 @@ export default function Billing() {
                 </td>
                 <td style={{ padding:"12px 16px", textAlign:"right", display:"flex", gap:6, justifyContent:"flex-end" }}>
                   {inv.status === "PAID" ? (
-                    <button style={{ fontSize:12, color:"#1a8c6e", fontWeight:500, border:"1px solid #d6e8e0", background:"white", cursor:"pointer", padding:"4px 10px", borderRadius:6 }}>
-                      Receipt
+                    <button onClick={() => generateInvoicePDF(inv)} style={{ fontSize:12, color:"#1a8c6e", fontWeight:500, border:"1px solid #d6e8e0", background:"white", cursor:"pointer", padding:"4px 10px", borderRadius:6 }}>
+                      Receipt PDF
                     </button>
                   ) : (
                     <button onClick={() => markPaid(inv.id, "MPESA")} style={{ fontSize:12, color:"#1a8c6e", fontWeight:500, border:"1px solid #d6e8e0", background:"white", cursor:"pointer", padding:"4px 10px", borderRadius:6 }}>

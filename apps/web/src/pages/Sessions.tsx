@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import api from "../lib/api"
 import Layout from "../components/Layout"
+import { generateSessionNotePDF } from "../lib/pdf"
 
 export default function Sessions() {
   const [appointments, setAppointments] = useState<any[]>([])
@@ -152,8 +153,9 @@ export default function Sessions() {
                       ))}
                     </div>
                     <div style={{ display:"flex", gap:8, paddingTop:10, borderTop:"1px solid #f0f4f2" }}>
-                      <button onClick={() => openNote(appt)} style={{ padding:"5px 12px", borderRadius:8, border:"1px solid #d6e8e0", background:"white", fontSize:12, cursor:"pointer", color:"#4a6359" }}>Edit</button>
-                      <button style={{ padding:"5px 12px", borderRadius:8, border:"1px solid #d6e8e0", background:"white", fontSize:12, cursor:"pointer", color:"#4a6359" }}>Print PDF</button>
+                      <button style={{ padding:"5px 12px", borderRadius:8, border:"1px solid #d6e8e0", background:"white", fontSize:12, cursor:"pointer", color:"#4a6359" }} onClick={() => generateSessionNotePDF(note, selected)}>
+                        Print PDF
+                      </button>
                       <button style={{ padding:"5px 12px", borderRadius:8, border:"1px solid #d6e8e0", background:"white", fontSize:12, cursor:"pointer", color:"#1a8c6e" }}>Share with Parent</button>
                     </div>
                   </div>
