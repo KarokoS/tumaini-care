@@ -60,21 +60,25 @@ export default function Billing() {
   const mpesaTotal = invoices.filter(i=>i.status==="PAID").reduce((s,i)=>s+parseFloat(i.amountKes),0)
 
   return (
-    <Layout title="Billing & Payments" action={
-      <button onClick={() => setShowForm(true)} style={{ padding:"8px 16px", borderRadius:8, border:"none", background:"#1a8c6e", color:"white", fontSize:13, fontWeight:500, cursor:"pointer" }}>+ New Invoice</button>
-    }>
-      action={
-        <div style={{ display: "flex", gap: 8 }}>
-        <button onClick={() => generateFinancialReportPDF(invoices, "All time")}
-          style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #d6e8e0", background: "white", color: "#4a6359", fontSize: 13, cursor: "pointer" }}
-        >
-          Export PDF
-        </button>
-        <button onClick={() => setShowForm(true)} style={{ padding: "8px 16px", borderRadius: 8, border: "none", background: "#1a8c6e", color: "white", fontSize: 13, fontWeight: 500, cursor: "pointer" }}>
-          + New Invoice
-        </button>
-        </div>
-    }
+    <Layout
+  title="Billing & Payments"
+  action={
+    <div style={{ display: "flex", gap: 8 }}>
+      <button
+        onClick={() => generateFinancialReportPDF(invoices, "All time")}
+        style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #d6e8e0", background: "white", color: "#4a6359", fontSize: 13, cursor: "pointer" }}
+      >
+        Export PDF
+      </button>
+      <button
+        onClick={() => setShowForm(true)}
+        style={{ padding: "8px 16px", borderRadius: 8, border: "none", background: "#1a8c6e", color: "white", fontSize: 13, fontWeight: 500, cursor: "pointer" }}
+      >
+        + New Invoice
+      </button>
+    </div>
+  }
+>
 
       <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:14, marginBottom:20 }}>
         {[
