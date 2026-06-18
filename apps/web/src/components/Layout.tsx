@@ -1,38 +1,50 @@
-import { useEffect } from "react"
+import { useEffect, type ReactNode } from "react"
 import { NavLink } from "react-router-dom"
 import { useAuthStore } from "../stores/auth.store"
 import styles from "./Layout.module.css"
 
-const NAV_SECTIONS = [
+type NavItem = {
+  label: string
+  path: string
+  icon: string
+}
+
+type NavSection = {
+  label: string
+  items: NavItem[]
+}
+
+const NAV_SECTIONS: NavSection[] = [
   {
     label: "Main",
     items: [
-      ["Dashboard", "/dashboard"],
-      ["Clients", "/clients"],
-      ["Schedule", "/schedule"],
+      { label: "Dashboard", path: "/dashboard", icon: "D" },
+      { label: "Clients", path: "/clients", icon: "C" },
+      { label: "Schedule", path: "/schedule", icon: "S" },
     ],
   },
   {
     label: "Therapy",
     items: [
-      ["Sessions", "/sessions"],
-      ["Therapy Plans", "/plans"],
-      ["Reports", "/reports"],
+      ["Sessions", "/sessions", "📝"],
+      ["Therapy Plans", "/plans", "🎯"],
+      ["Assessments", "/assessments", "📋"],
+      ["Reports", "/reports", "📊"],
     ],
   },
   {
     label: "Operations",
     items: [
-      ["Billing", "/billing"],
-      ["Staff", "/staff"],
+      { label: "Billing", path: "/billing", icon: "B" },
+      { label: "Staff", path: "/staff", icon: "T" },
     ],
   },
 ]
 
 interface LayoutProps {
   title: string
-  children: React.ReactNode
-  action?: React.ReactNode
+  children: ReactNode
+  action?: ReactNode
 }
 
 export default function Layout({ title, children, action }: LayoutProps) {
@@ -44,9 +56,7 @@ export default function Layout({ title, children, action }: LayoutProps) {
 
   return (
     <div className={styles.container}>
-
       <aside className={styles.aside} aria-label="Application sidebar">
-
         <div className={styles.brand}>
           <div className={styles.logo}>T</div>
           <div>
@@ -56,17 +66,20 @@ export default function Layout({ title, children, action }: LayoutProps) {
         </div>
 
         <nav className={styles.nav} aria-label="Primary navigation">
-          {NAV_SECTIONS.map((section, si) => (
-            <div key={si}>
+          {NAV_SECTIONS.map((section) => (
+            <div key={section.label}>
               <div className={styles.sectionTitle}>{section.label}</div>
               <ul className={styles.navList}>
-                {section.items.map((item, idx) => (
-                  <li key={idx} className={styles.navItem}>
+                {section.items.map((item) => (
+                  <li key={item.path} className={styles.navItem}>
                     <NavLink
-                      to={item[1]}
-                      className={({ isActive }) => isActive ? `${styles.navLink} ${styles.navLinkActive}` : styles.navLink}
+                      to={item.path}
+                      className={({ isActive }) =>
+                        `${styles.navLink} ${isActive ? styles.navLinkActive : ""}`
+                      }
                     >
-                      {item[0]}
+                      <span className={styles.navIcon}>{item.icon}</span>
+                      {item.label}
                     </NavLink>
                   </li>
                 ))}
@@ -77,27 +90,30 @@ export default function Layout({ title, children, action }: LayoutProps) {
 
         <div className={styles.profile}>
           <div className={styles.profileRow}>
-            <div className={styles.avatar}>{user?.fullName?.charAt(0) ?? 'U'}</div>
+            <div className={styles.avatar}>{user?.fullName?.charAt(0) ?? "U"}</div>
             <div className={styles.profileInfo}>
-              <div className={styles.userName}>{user?.fullName}</div>
-              <div className={styles.userRole}>{user?.role}</div>
+              <div className={styles.userName}>{user?.fullName ?? "User"}</div>
+              <div className={styles.userRole}>{user?.role ?? "Member"}</div>
             </div>
           </div>
-          <button onClick={logout} className={styles.signout}>Sign out</button>
+          <button type="button" onClick={logout} className={styles.signout}>
+            Sign out
+          </button>
         </div>
       </aside>
 
       <div className={styles.contentWrapper}>
-
         <header className={styles.header}>
           <h1 className={styles.title}>{title}</h1>
-          <div className={styles.searchBox}>🔍 Search clients, sessions...</div>
+          <div className={styles.searchBox}>Search clients, sessions...</div>
           <div className={styles.headerActions}>
             <div className={styles.iconBtn} aria-hidden>
-              🔔
+              !
               <span className={styles.notificationDot} />
             </div>
-            <div className={styles.iconBtn} aria-hidden>⚙️</div>
+            <div className={styles.iconBtn} aria-hidden>
+              *
+            </div>
           </div>
           {action && <div style={{ marginLeft: 8 }}>{action}</div>}
         </header>

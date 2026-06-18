@@ -261,3 +261,15 @@ model AuditLog {
   @@index([entity, entityId])
   @@index([staffId, createdAt])
 }
+
+model Assessment {
+  id              String   @id @default(uuid())
+  clientId        String
+  templateName    String
+  assessorName    String?
+  assessmentDate  DateTime
+  findings        String?
+  recommendations String?
+  createdAt       DateTime @default(now())
+  client          Client   @relation(fields: [clientId], references: [id])
+}
