@@ -15,20 +15,20 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
 
   async function handleLogin(e: React.FormEvent) {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
-    try {
-      const res = await api.post('/auth/login', { email, password })
-      const { accessToken, refreshToken, user } = res.data
-      login(user, accessToken, refreshToken)
-      window.location.href = '/dashboard'
-    } catch (err: unknown) {
-      setError(errorMessage(err, 'Login failed. Please try again.'))
-    } finally {
-      setLoading(false)
-    }
+  e.preventDefault()
+  setLoading(true)
+  setError('')
+  try {
+    const res = await api.post('/auth/login', { email, password })
+    const { accessToken, refreshToken, user } = res.data
+    login(user, accessToken, refreshToken)
+    window.location.href = user.role === 'PARENT' ? '/parent' : '/dashboard'
+  } catch (err: unknown) {
+    setError(errorMessage(err, 'Login failed. Please try again.'))
+  } finally {
+    setLoading(false)
   }
+}
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'linear-gradient(135deg, #e6f4ef 0%, #f4f7f5 100%)' }}>

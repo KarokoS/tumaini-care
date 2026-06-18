@@ -1,47 +1,197 @@
-:root{
-  --brand:#1a8c6e;
-  --muted:#8aab9e;
-  --border:#d6e8e0;
-  --bg:#f4f7f5;
+:root {
+  --brand: #1a8c6e;
+  --muted: #8aab9e;
+  --border: #d6e8e0;
+  --bg: #f4f7f5;
 }
-.container{
-  display:flex;
-  min-height:100vh;
-  background:var(--bg);
-  font-family:'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+/* ── Base layout ── */
+.container {
+  display: flex;
+  min-height: 100vh;
+  background: var(--bg);
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
-.aside{
-  width:224px;
-  background:white;
-  border-right:1px solid var(--border);
-  position:fixed;
-  top:0; left:0; height:100%;
-  display:flex; flex-direction:column; z-index:50;
+
+/* ── Sidebar ── */
+.aside {
+  width: 224px;
+  background: white;
+  border-right: 1px solid var(--border);
+  position: fixed;
+  top: 0; left: 0; height: 100%;
+  display: flex;
+  flex-direction: column;
+  z-index: 50;
+  transition: transform 0.25s ease;
 }
-.brand{padding:18px 20px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
-.logo{width:36px;height:36px;background:var(--brand);border-radius:10px;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:16px}
-.brandTitle{font-size:13px;font-weight:600;color:var(--brand);letter-spacing:-0.01em}
-.brandSub{font-size:10px;color:var(--muted)}
-.nav{flex:1;padding:10px;overflow-y:auto}
-.sectionTitle{font-size:10px;font-weight:600;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;padding:8px 10px 4px;margin-top:8px}
-.navList{list-style:none;margin:0;padding:0}
-.navItem{margin-bottom:1px}
-.navLink{display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:10px;font-size:13.5px;color:#4a6359;text-decoration:none;transition:all .15s}
-.navLink:hover{background:#f3f7f6}
-.navLinkActive{color:var(--brand);background:#e6f4ef;font-weight:600}
-.navIcon{width:16px;flex-shrink:0;text-align:center;font-size:12px;font-weight:700}
-.profile{padding:14px;border-top:1px solid var(--border)}
-.profileRow{display:flex;align-items:center;gap:10px;margin-bottom:10px}
-.profileInfo{min-width:0;flex:1}
-.avatar{width:32px;height:32px;border-radius:50%;background:var(--brand);display:flex;align-items:center;justify-content:center;color:white;font-size:12px;font-weight:600}
-.userName{font-size:12px;font-weight:500;color:#1a2724;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.userRole{font-size:10px;color:var(--muted)}
-.signout{width:100%;font-size:12px;color:#4a6359;padding:6px 8px;border-radius:8px;border:none;background:transparent;cursor:pointer;text-align:left}
-.contentWrapper{margin-left:224px;flex:1;display:flex;flex-direction:column;min-width:0}
-.header{background:white;border-bottom:1px solid var(--border);padding:0 24px;height:58px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:40}
-.title{font-size:18px;font-weight:500;color:#1a2724;margin:0}
-.searchBox{margin-left:auto;display:flex;align-items:center;gap:8px;background:#f0f4f2;border:1px solid var(--border);border-radius:10px;padding:7px 12px;font-size:13px;color:var(--muted);width:220px}
-.headerActions{display:flex;align-items:center;gap:8px}
-.iconBtn{width:34px;height:34px;border-radius:10px;background:#f0f4f2;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative}
-.notificationDot{position:absolute;top:7px;right:8px;width:6px;height:6px;border-radius:50%;background:#d63f5c}
-.main{padding:24px;flex:1}
+
+.brand {
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.logo {
+  width: 36px; height: 36px;
+  background: var(--brand);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-weight: 700; font-size: 16px;
+  flex-shrink: 0;
+}
+.brandTitle { font-size: 13px; font-weight: 600; color: var(--brand); letter-spacing: -0.01em; }
+.brandSub   { font-size: 10px; color: var(--muted); }
+
+.nav { flex: 1; padding: 10px; overflow-y: auto; }
+.sectionTitle {
+  font-size: 10px; font-weight: 600; color: var(--muted);
+  letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 8px 10px 4px; margin-top: 8px;
+}
+.navList  { list-style: none; margin: 0; padding: 0; }
+.navItem  { margin-bottom: 1px; }
+.navLink  {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 10px; border-radius: 10px;
+  font-size: 13.5px; color: #4a6359;
+  text-decoration: none; transition: all .15s;
+}
+.navLink:hover      { background: #f3f7f6; }
+.navLinkActive      { color: var(--brand); background: #e6f4ef; font-weight: 600; }
+.navIcon            { width: 16px; flex-shrink: 0; text-align: center; font-size: 12px; font-weight: 700; }
+
+.profile     { padding: 14px; border-top: 1px solid var(--border); }
+.profileRow  { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.profileInfo { min-width: 0; flex: 1; }
+.avatar      {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--brand);
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-size: 12px; font-weight: 600;
+}
+.userName { font-size: 12px; font-weight: 500; color: #1a2724; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.userRole { font-size: 10px; color: var(--muted); }
+.signout  {
+  width: 100%; font-size: 12px; color: #4a6359;
+  padding: 6px 8px; border-radius: 8px;
+  border: none; background: transparent; cursor: pointer; text-align: left;
+}
+
+/* ── Overlay (mobile — behind open sidebar) ── */
+.overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.35);
+  z-index: 49;
+}
+.overlayVisible { display: block; }
+
+/* ── Content area ── */
+.contentWrapper {
+  margin-left: 224px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* ── Topbar ── */
+.header {
+  background: white;
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  height: 58px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  position: sticky;
+  top: 0; z-index: 40;
+}
+.hamburger {
+  display: none;
+  width: 34px; height: 34px;
+  border-radius: 10px;
+  background: #f0f4f2;
+  border: 1px solid var(--border);
+  align-items: center; justify-content: center;
+  cursor: pointer; font-size: 16px;
+  flex-shrink: 0;
+}
+.title      { font-size: 18px; font-weight: 500; color: #1a2724; margin: 0; white-space: nowrap; }
+.searchBox  {
+  margin-left: auto;
+  display: flex; align-items: center; gap: 8px;
+  background: #f0f4f2; border: 1px solid var(--border);
+  border-radius: 10px; padding: 7px 12px;
+  font-size: 13px; color: var(--muted); width: 220px;
+}
+.headerActions { display: flex; align-items: center; gap: 8px; }
+.iconBtn {
+  width: 34px; height: 34px; border-radius: 10px;
+  background: #f0f4f2; border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; position: relative; font-size: 15px;
+}
+.notificationDot {
+  position: absolute; top: 7px; right: 8px;
+  width: 6px; height: 6px;
+  border-radius: 50%; background: #d63f5c;
+}
+
+.main { padding: 24px; flex: 1; }
+
+/* ════════════════════════════════════════
+   RESPONSIVE — tablet (≤ 1024px)
+   ════════════════════════════════════════ */
+@media (max-width: 1024px) {
+  .searchBox { width: 160px; }
+}
+
+/* ════════════════════════════════════════
+   RESPONSIVE — mobile (≤ 768px)
+   ════════════════════════════════════════ */
+@media (max-width: 768px) {
+
+  /* Sidebar slides off-screen by default */
+  .aside {
+    transform: translateX(-100%);
+    width: 240px;
+    box-shadow: 4px 0 24px rgba(0,0,0,0.12);
+  }
+
+  /* Class toggled by JS to open it */
+  .asideOpen {
+    transform: translateX(0);
+  }
+
+  /* Content fills full width */
+  .contentWrapper {
+    margin-left: 0;
+  }
+
+  /* Show hamburger button */
+  .hamburger {
+    display: flex;
+  }
+
+  /* Hide search box on mobile to save space */
+  .searchBox {
+    display: none;
+  }
+
+  /* Compact topbar */
+  .header {
+    padding: 0 14px;
+    gap: 10px;
+  }
+
+  .title {
+    font-size: 15px;
+  }
+
+  .main {
+    padding: 14px;
+  }
+}

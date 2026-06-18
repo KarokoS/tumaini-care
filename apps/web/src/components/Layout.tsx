@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 import { NavLink } from "react-router-dom"
 import { useAuthStore } from "../stores/auth.store"
 import styles from "./Layout.module.css"
@@ -18,27 +18,28 @@ const NAV_SECTIONS: NavSection[] = [
   {
     label: "Main",
     items: [
-      { label: "Dashboard", path: "/dashboard", icon: "D" },
-      { label: "Clients", path: "/clients", icon: "C" },
-      { label: "Schedule", path: "/schedule", icon: "S" },
-    ],
+      { label: "Dashboard",    path: "/dashboard",   icon: "⊞" },
+      { label: "Clients",      path: "/clients",     icon: "👥" },
+      { label: "Schedule",     path: "/schedule",    icon: "📅" },
+    ]
   },
   {
     label: "Therapy",
     items: [
-      ["Sessions", "/sessions", "📝"],
-      ["Therapy Plans", "/plans", "🎯"],
-      ["Assessments", "/assessments", "📋"],
-      ["Reports", "/reports", "📊"],
-    ],
+      { label: "Sessions",     path: "/sessions",    icon: "📝" },
+      { label: "Therapy Plans",path: "/plans",       icon: "🎯" },
+      { label: "Assessments",  path: "/assessments", icon: "📋" },
+      { label: "Reports",      path: "/reports",     icon: "📊" },
+    ]
   },
   {
     label: "Operations",
     items: [
-      { label: "Billing", path: "/billing", icon: "B" },
-      { label: "Staff", path: "/staff", icon: "T" },
-    ],
-  },
+      { label: "Billing",      path: "/billing",     icon: "💳" },
+      { label: "Staff",        path: "/staff",       icon: "👤" },
+      { label: "Inventory",    path: "/inventory",   icon: "📦" },
+    ]
+  }
 ]
 
 interface LayoutProps {
@@ -49,14 +50,37 @@ interface LayoutProps {
 
 export default function Layout({ title, children, action }: LayoutProps) {
   const { user, logout, initialize } = useAuthStore()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   useEffect(() => {
     initialize()
   }, [initialize])
 
+  // Close sidebar when route changes on mobile
+  useEffect(() => {
+    setSidebarOpen(false)
+  }, [title])
+
+  // Prevent body scroll when sidebar is open on mobile
+  useEffect(() => {
+    document.body.style.overflow = sidebarOpen ? "hidden" : ""
+    return () => { document.body.style.overflow = "" }
+  }, [sidebarOpen])
+
   return (
     <div className={styles.container}>
-      <aside className={styles.aside} aria-label="Application sidebar">
+
+      {/* Mobile overlay */}
+      <div
+        className={`${styles.overlay} ${sidebarOpen ? styles.overlayVisible : ""}`}
+        onClick={() => setSidebarOpen(false)}
+      />
+
+      {/* Sidebar */}
+      <aside
+        className={`${styles.aside} ${sidebarOpen ? styles.asideOpen : ""}`}
+        aria-label="Application sidebar"
+      >
         <div className={styles.brand}>
           <div className={styles.logo}>T</div>
           <div>
@@ -74,6 +98,7 @@ export default function Layout({ title, children, action }: LayoutProps) {
                   <li key={item.path} className={styles.navItem}>
                     <NavLink
                       to={item.path}
+                      onClick={() => setSidebarOpen(false)}
                       className={({ isActive }) =>
                         `${styles.navLink} ${isActive ? styles.navLinkActive : ""}`
                       }
@@ -102,19 +127,33 @@ export default function Layout({ title, children, action }: LayoutProps) {
         </div>
       </aside>
 
+      {/* Main content */}
       <div className={styles.contentWrapper}>
         <header className={styles.header}>
+
+          {/* Hamburger — only visible on mobile */}
+          <button
+            className={styles.hamburger}
+            onClick={() => setSidebarOpen(s => !s)}
+            aria-label="Open navigation"
+          >
+            ☰
+          </button>
+
           <h1 className={styles.title}>{title}</h1>
+
           <div className={styles.searchBox}>Search clients, sessions...</div>
+
           <div className={styles.headerActions}>
             <div className={styles.iconBtn} aria-hidden>
-              !
+              🔔
               <span className={styles.notificationDot} />
             </div>
             <div className={styles.iconBtn} aria-hidden>
-              *
+              ⚙️
             </div>
           </div>
+
           {action && <div style={{ marginLeft: 8 }}>{action}</div>}
         </header>
 

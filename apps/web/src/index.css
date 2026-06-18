@@ -8,3 +8,58 @@ body {
   color: #1a2724;
   margin: 0;
 }
+
+/* ── Responsive grid helpers ── */
+@media (max-width: 768px) {
+  /* Stack all inline-styled stat grids */
+  [style*="repeat(4,1fr)"],
+  [style*="repeat(4, 1fr)"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  [style*="repeat(3,1fr)"],
+  [style*="repeat(3, 1fr)"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  [style*="2fr 1fr"],
+  [style*="1fr 2fr"],
+  [style*="1fr 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Tables scroll horizontally */
+  table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Full-screen modals on mobile */
+  [style*="width:480px"],
+  [style*="width:560px"],
+  [style*="width:620px"],
+  [style*="width: 480px"],
+  [style*="width: 560px"],
+  [style*="width: 620px"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 16px 16px 0 0 !important;
+    position: fixed !important;
+    bottom: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Modal containers snap to bottom */
+  [style*="alignItems:center"][style*="justifyContent:center"],
+  [style*="align-items:center"][style*="justify-content:center"] {
+    align-items: flex-end !important;
+  }
+}
+
+@media (max-width: 480px) {
+  [style*="repeat(2,1fr)"],
+  [style*="repeat(2, 1fr)"] {
+    grid-template-columns: 1fr !important;
+  }
+}

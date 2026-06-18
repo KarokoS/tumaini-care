@@ -12,6 +12,7 @@ import { sessionRoutes } from './modules/sessions/sessions.routes'
 import { itpRoutes } from './modules/itps/itps.routes'
 import { billingRoutes } from './modules/billing/billing.routes'
 import { assessmentRoutes } from './modules/assessments/assessments.routes'
+import { parentRoutes } from './modules/parent/parent.routes'
 import { AppError } from './shared/errors'
 const fastify = Fastify({ logger: true })
 async function buildServer() {
@@ -30,6 +31,7 @@ async function buildServer() {
   await fastify.register(itpRoutes, { prefix: '/api/v1' })
   await fastify.register(billingRoutes, { prefix: '/api/v1' })
   await fastify.register(assessmentRoutes, { prefix: '/api/v1' })
+  await fastify.register(parentRoutes, { prefix: '/api/v1' })
   fastify.setErrorHandler((error, _request, reply) => {
     if (error instanceof AppError) return reply.status(error.statusCode).send({ error: error.code, message: error.message })
     fastify.log.error(error)
