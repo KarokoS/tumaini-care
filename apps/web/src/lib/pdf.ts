@@ -265,3 +265,97 @@ export function generateFinancialReportPDF(invoices: any[], period: string) {
   addFooter(doc)
   doc.save(`financial-report-${Date.now()}.pdf`)
 }
+
+export function generateParentSessionPDF(appt: any) {
+  const doc = new jsPDF()
+  const note = appt.sessionNote
+  const clientName = appt.client?.fullName ?? "Your Child"
+  const date = new Date(appt.scheduledAt).toLocaleDateString("en-KE", {
+    weekday: "long", day: "numeric", month: "long", year: "numeric"
+  })
+  let y = addHeader(doc, "Session Summary", `${clientName} · ${date}`)
+
+  const intro = `Dear Parent/Guardian,\n\nPlease find below a summary of today's ${appt.therapyType} session for ${clientName}. This note has been prepared by ${appt.therapist?.fullName ?? "your therapist"} to keep you informed of your child's progress.`
+  doc.setFontSize(10)
+  doc.setFont("helvetica", "normal")
+  doc.setTextColor(...DARK)
+  const introLines = doc.splitTextToSize(intro, 182)
+  doc.text(introLines, 14, y)
+  y += introLines.length * 5.5 + 10
+
+  // Session details box
+  doc.setFillColor(...LIGHT)
+  doc.roundedRect(14, y, 182, 18, 3, 3, "F")
+  doc.setFontSize(8.5)
+  doc.setFont("helvetica", "bold")
+  doc.setTextColor(...DARK)
+  doc.text("Session Type:", 18, y + 7)
+  doc.setFont("helvetica", "normal")
+  doc.text(appt.therapyType, 50, y + 7)
+  doc.setFont("helvetica", "bold")
+  doc.text("Therapist:", 110, y + 7)
+  doc.setFont("helvetica", "normal")
+  doc.text(appt.therapist?.fullName ?? "—", 133, y + 7)
+  doc.setFont("helvetica", "bold")
+  doc.text("Date:", 18, y + 13)
+  doc.setFont("helvetica", "normal")
+  doc.text(date, 30, y + 13)
+  y += 26
+
+  if (note?.objective) {
+    doc.setFontSize(11)
+    doc.setFont("helvetica", "bold")
+    doc.setTextColor(...TEAL)
+    doc.text("What We Worked On Today", 14, y)
+    y += 7
+    doc.setFontSize(9.5)
+    doc.setFont("helvetica", "normal")
+    doc.setTextColor(...DARK)
+    const lines = doc.splitTextToSize(note.objective, 182)
+    doc.text(lines, 14, y)
+    y += lines.length * 5.5 + 10
+  }
+
+  if (note?.plan) {
+    doc.setFontSize(11)
+    doc.setFont("helvetica", "bold")
+    doc.setTextColor(...TEAL)
+    doc.text("Home Program — What You Can Do", 14, y)
+    y += 7
+    const planLines = doc.splitTextToSize(note.plan, 174)
+    doc.setFillColor(230, 244, 239)
+    doc.roundedRect(14, y - 2, 182, planLines.length * 5.5 + 8, 3, 3, "F")
+    doc.setFontSize(9.5)
+    doc.setFont("helvetica", "normal")
+    doc.setTextColor(...DARK)
+    doc.text(planLines, 18, y + 4)
+    y += planLines.length * 5.5 + 16
+  }
+
+  if (note?.assessment) {
+    doc.setFontSize(11)
+    doc.setFont("helvetica", "bold")
+    doc.setTextColor(...TEAL)
+    doc.text("Therapist's Notes", 14, y)
+    y += 7
+    doc.setFontSize(9.5)
+    doc.setFont("helvetica", "normal")
+    doc.setTextColor(...DARK)
+    const lines = doc.splitTextToSize(note.assessment, 182)
+    doc.text(lines, 14, y)
+    y += lines.length * 5.5 + 10
+  }
+
+  doc.setFillColor(...LIGHT)
+  doc.roundedRect(14, y, 182, 18, 3, 3, "F")
+  doc.setFontSize(8.5)
+  doc.setFont("helvetica", "bold")
+  doc.setTextColor(...DARK)
+  doc.text("Questions? Contact us:", 18, y + 7)
+  doc.setFont("helvetica", "normal")
+  doc.setTextColor(...MUTED)
+  doc.text("Tumaini St. Thorlak Autism Centre · Nanyuki · app.tumaini.ke", 18, y + 13)
+
+  addFooter(doc)
+  doc.save(`parent-session-${clientName.replace(/\s+/g, "-").toLowerCase()}-${Date.now()}.pdf`)
+}
