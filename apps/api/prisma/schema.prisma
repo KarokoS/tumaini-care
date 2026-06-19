@@ -55,38 +55,41 @@ enum PaymentMethod {
 }
 
 model Branch {
-  id        String   @id @default(uuid())
+  id        String          @id @default(uuid())
   name      String
   location  String
   phone     String?
   email     String?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
+  isActive  Boolean         @default(true)
+  createdAt DateTime        @default(now())
   clients   Client[]
   staff     Staff[]
+  inventory InventoryItem[]
 }
 
 model Client {
-  id           String        @id @default(uuid())
-  fullName     String
-  dob          DateTime
-  gender       String
-  diagnosis    String?
-  coOccurring  String?
-  allergies    String?
-  status       String        @default("ACTIVE")
-  photoUrl     String?
-  referralSrc  String?
-  schoolName   String?
-  branchId     String
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  branch       Branch        @relation(fields: [branchId], references: [id])
-  guardians    Guardian[]
-  appointments Appointment[]
-  itps         ITP[]
-  invoices     Invoice[]
-  documents    Document[]
+  id            String        @id @default(uuid())
+  fullName      String
+  dob           DateTime
+  gender        String
+  diagnosis     String?
+  coOccurring   String?
+  allergies     String?
+  status        String        @default("ACTIVE")
+  photoUrl      String?
+  referralSrc   String?
+  schoolName    String?
+  parentUserId  String?
+  branchId      String
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  branch        Branch        @relation(fields: [branchId], references: [id])
+  guardians     Guardian[]
+  appointments  Appointment[]
+  itps          ITP[]
+  invoices      Invoice[]
+  documents     Document[]
+  assessments   Assessment[]
 }
 
 model Guardian {
@@ -103,19 +106,19 @@ model Guardian {
 }
 
 model Staff {
-  id           String       @id @default(uuid())
+  id           String        @id @default(uuid())
   fullName     String
-  email        String       @unique
+  email        String        @unique
   role         Role
   specialty    TherapyType?
   phone        String?
   pwHash       String
   totpSecret   String?
-  twoFaEnabled Boolean      @default(false)
-  isActive     Boolean      @default(true)
+  twoFaEnabled Boolean       @default(false)
+  isActive     Boolean       @default(true)
   branchId     String
-  createdAt    DateTime     @default(now())
-  branch       Branch       @relation(fields: [branchId], references: [id])
+  createdAt    DateTime      @default(now())
+  branch       Branch        @relation(fields: [branchId], references: [id])
   appointments Appointment[]
   sessions     SessionNote[]
   auditLogs    AuditLog[]
@@ -152,8 +155,8 @@ model SessionNote {
   signedAt      DateTime?
   isLocked      Boolean     @default(false)
   createdAt     DateTime    @default(now())
-  appointment   Appointment  @relation(fields: [appointmentId], references: [id])
-  author        Staff        @relation(fields: [authorId], references: [id])
+  appointment   Appointment @relation(fields: [appointmentId], references: [id])
+  author        Staff       @relation(fields: [authorId], references: [id])
   attachments   Document[]
 }
 
@@ -194,19 +197,21 @@ model GoalProgressLog {
 }
 
 model Invoice {
-  id        String        @id @default(uuid())
-  clientId  String
-  number    String        @unique
-  amountKes Decimal       @db.Decimal(12, 2)
-  status    InvoiceStatus @default(DRAFT)
-  dueDate   DateTime?
-  issuedAt  DateTime?
-  paidAt    DateTime?
-  notes     String?
-  createdAt DateTime      @default(now())
-  client    Client        @relation(fields: [clientId], references: [id])
-  lineItems InvoiceItem[]
-  payments  Payment[]
+  id               String        @id @default(uuid())
+  clientId         String
+  number           String        @unique
+  amountKes        Decimal       @db.Decimal(12, 2)
+  status           InvoiceStatus @default(DRAFT)
+  dueDate          DateTime?
+  issuedAt         DateTime?
+  paidAt           DateTime?
+  notes            String?
+  mpesaCheckoutId  String?
+  mpesaRef         String?
+  createdAt        DateTime      @default(now())
+  client           Client        @relation(fields: [clientId], references: [id])
+  lineItems        InvoiceItem[]
+  payments         Payment[]
 }
 
 model InvoiceItem {
@@ -286,8 +291,4 @@ model InventoryItem {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   branch    Branch   @relation(fields: [branchId], references: [id])
-  inventory InventoryItem[] 
 }
-
-mpesaCheckoutId  String?
-mpesaRef         String?
