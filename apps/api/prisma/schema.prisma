@@ -288,3 +288,6 @@ model InventoryItem {
   branch    Branch   @relation(fields: [branchId], references: [id])
   inventory InventoryItem[] 
 }
+
+mpesaCheckoutId  String?
+mpesaRef         String?
