@@ -14,17 +14,13 @@ import { billingRoutes } from './modules/billing/billing.routes'
 import { assessmentRoutes } from './modules/assessments/assessments.routes'
 import { parentRoutes } from './modules/parent/parent.routes'
 import { mpesaRoutes } from './modules/mpesa/mpesa.routes'
+import { inventoryRoutes } from './modules/inventory/inventory.routes'
 import { AppError } from './shared/errors'
 const fastify = Fastify({ logger: true })
 async function buildServer() {
   await fastify.register(fastifyCors, {
-    origin: [
-      'http://localhost:3000',
-      'http://localhost:5173',
-      'https://tumaini-care.netlify.app',
-      'https://app.tumainiautismcentre.adnyeri.org',
-    ],
-    credentials: true,
+  origin: true,
+  credentials: true,
   })
   await fastify.register(fastifyJwt, { secret: process.env.JWT_SECRET ?? 'fallback-secret' })
   await fastify.register(fastifyRateLimit, { max: 100, timeWindow: '1 minute' })
@@ -39,6 +35,7 @@ async function buildServer() {
   await fastify.register(assessmentRoutes, { prefix: '/api/v1' })
   await fastify.register(parentRoutes, { prefix: '/api/v1' })
   await fastify.register(mpesaRoutes, { prefix: '/api/v1' })
+  await fastify.register(inventoryRoutes, { prefix: '/api/v1' })
   fastify.setErrorHandler((error, _request, reply) => {
     if (error instanceof AppError) return reply.status(error.statusCode).send({ error: error.code, message: error.message })
     fastify.log.error(error)
