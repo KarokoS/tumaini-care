@@ -1,6 +1,6 @@
 [build]
   base    = "apps/web"
-  command = "npx pnpm install && npx pnpm run build"
+  command = "npx pnpm install && npx vite build"
   publish = "dist"
 
 [build.environment]
