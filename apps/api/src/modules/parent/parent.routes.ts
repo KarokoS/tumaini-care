@@ -8,7 +8,6 @@ export async function parentRoutes(fastify: FastifyInstance) {
   }, async (request, reply) => {
     const user = request.user as JWTPayload
 
-    // Find client linked to this parent account
     const client = await prisma.client.findFirst({
       where: { parentUserId: user.id },
     })
@@ -17,7 +16,6 @@ export async function parentRoutes(fastify: FastifyInstance) {
       return reply.status(404).send({ message: "No client linked to this account" })
     }
 
-    // Fetch related data separately to avoid include type issues
     const [upcomingAppts, completedAppts, itps, invoices] = await Promise.all([
       prisma.appointment.findMany({
         where: {
@@ -55,25 +53,26 @@ export async function parentRoutes(fastify: FastifyInstance) {
       }),
     ])
 
+    const nextAppt = upcomingAppts[0] ?? null
+
     const allGoals = itps[0]?.goals ?? []
     const avgProgress = allGoals.length > 0
-      ? Math.round(allGoals.reduce((s, g) => s + g.progressPct, 0) / allGoals.length)
+      ? Math.round(allGoals.reduce((s: number, g: { progressPct: number }) => s + g.progressPct, 0) / allGoals.length)
       : 0
 
-    const nextAppt = upcomingAppts[0]
     const recentNotes = completedAppts
-      .filter(a => a.sessionNote)
+      .filter((a: any) => a.sessionNote)
       .slice(0, 3)
-      .map(a => ({
+      .map((a: any) => ({
         date:        a.scheduledAt,
         therapyType: a.therapyType,
         plan:        a.sessionNote?.plan,
       }))
 
     return reply.send({
-      childName:      client.fullName,
-      sessionsMonth:  completedAppts.length,
-      goalProgress:   avgProgress,
+      childName:     client.fullName,
+      sessionsMonth: completedAppts.length,
+      goalProgress:  avgProgress,
       nextAppt: nextAppt ? {
         date:      new Date(nextAppt.scheduledAt).toLocaleDateString("en-KE", {
           weekday: "short", day: "numeric", month: "short",
