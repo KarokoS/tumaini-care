@@ -18,7 +18,12 @@ import { AppError } from './shared/errors'
 const fastify = Fastify({ logger: true })
 async function buildServer() {
   await fastify.register(fastifyCors, {
-    origin: ['http://localhost:3000', 'http://localhost:5173'],
+    origin: [
+      'http://localhost:3000',
+      'http://localhost:5173',
+      'https://tumaini-care.netlify.app',
+      'https://app.tumainiautismcentre.adnyeri.org',
+    ],
     credentials: true,
   })
   await fastify.register(fastifyJwt, { secret: process.env.JWT_SECRET ?? 'fallback-secret' })
