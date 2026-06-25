@@ -359,3 +359,56 @@ export function generateParentSessionPDF(appt: any) {
   addFooter(doc)
   doc.save(`parent-session-${clientName.replace(/\s+/g, "-").toLowerCase()}-${Date.now()}.pdf`)
 }
+
+// ── Attendance Report PDF ──
+export function generateAttendanceReportPDF(appointments: any[], clients: any[]) {
+  const doc = new jsPDF()
+  const period = new Date().toLocaleDateString("en-KE", { month: "long", year: "numeric" })
+  let y = addHeader(doc, "Attendance Report", period)
+
+  const completed  = appointments.filter(a => a.status === "COMPLETED")
+  const cancelled  = appointments.filter(a => a.status === "CANCELLED")
+  const noShow     = appointments.filter(a => a.status === "NO_SHOW")
+  const rate       = appointments.length > 0 ? Math.round((completed.length / appointments.length) * 100) : 0
+
+  // Summary boxes
+  const boxes = [
+    { label: "Total Scheduled", value: String(appointments.length), color: DARK },
+    { label: "Completed",       value: String(completed.length),    color: TEAL },
+    { label: "Cancelled",       value: String(cancelled.length),    color: [217, 119, 6] as [number,number,number] },
+    { label: "Attendance Rate", value: rate + "%",                  color: TEAL },
+  ]
+  boxes.forEach((box, i) => {
+    const x = 14 + i * 46
+    doc.setFillColor(...LIGHT)
+    doc.roundedRect(x, y, 42, 18, 2, 2, "F")
+    doc.setFontSize(7)
+    doc.setFont("helvetica", "bold")
+    doc.setTextColor(...MUTED)
+    doc.text(box.label.toUpperCase(), x + 2, y + 5)
+    doc.setFontSize(11)
+    doc.setFont("helvetica", "bold")
+    doc.setTextColor(...box.color)
+    doc.text(box.value, x + 2, y + 13)
+  })
+  y += 26
+
+  autoTable(doc, {
+    startY: y,
+    head: [["Client", "Therapy Type", "Date", "Therapist", "Status"]],
+    body: appointments.map(a => [
+      a.client?.fullName ?? "—",
+      a.therapyType,
+      new Date(a.scheduledAt).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" }),
+      a.therapist?.fullName ?? "—",
+      a.status,
+    ]),
+    headStyles:  { fillColor: TEAL, fontSize: 9, fontStyle: "bold" },
+    bodyStyles:  { fontSize: 8.5, textColor: DARK },
+    alternateRowStyles: { fillColor: [248, 250, 249] },
+    margin: { left: 14, right: 14 },
+  })
+
+  addFooter(doc)
+  doc.save(`attendance-report-${Date.now()}.pdf`)
+}

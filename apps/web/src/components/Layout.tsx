@@ -145,14 +145,32 @@ export default function Layout({ title, children, action }: LayoutProps) {
           <div className={styles.searchBox}>Search clients, sessions...</div>
 
           <div className={styles.headerActions}>
-            <div className={styles.iconBtn} aria-hidden>
-              🔔
-              <span className={styles.notificationDot} />
-            </div>
-            <div className={styles.iconBtn} aria-hidden>
-              ⚙️
-            </div>
-          </div>
+  <div
+    className={styles.iconBtn}
+    title="Messages"
+    onClick={() => alert("Messaging coming soon")}
+    style={{ cursor: "pointer" }}
+  >
+    💬
+  </div>
+  <div
+    className={styles.iconBtn}
+    title="Notifications"
+    onClick={() => alert("No new notifications")}
+    style={{ cursor: "pointer", position: "relative" }}
+  >
+    🔔
+    <span className={styles.notificationDot} />
+  </div>
+  <div
+    className={styles.iconBtn}
+    title="Settings"
+    onClick={() => window.location.href = "/staff"}
+    style={{ cursor: "pointer" }}
+  >
+    ⚙️
+  </div>
+</div>
 
           {action && <div style={{ marginLeft: 8 }}>{action}</div>}
         </header>

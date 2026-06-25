@@ -8,6 +8,7 @@ import {
 import { Bar, Doughnut, Line } from "react-chartjs-2"
 import api from "../lib/api"
 import Layout from "../components/Layout"
+import { generateFinancialReportPDF, generateAttendanceReportPDF } from "../lib/pdf"
 
 ChartJS.register(
   CategoryScale, LinearScale, BarElement,
@@ -259,6 +260,38 @@ export default function Reports() {
               </div>
             </div>
           </div>
+
+          {/* ── Generate Reports panel ── */}
+  <div style={{ background: "white", border: "1px solid #d6e8e0", borderRadius: 16, overflow: "hidden", marginBottom: 14 }}>
+  <div style={{ padding: "14px 18px", borderBottom: "1px solid #d6e8e0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+    <div>
+      <div style={{ fontSize: 13.5, fontWeight: 600, color: "#1a2724" }}>Generate Reports</div>
+      <div style={{ fontSize: 11.5, color: "#8aab9e", marginTop: 2 }}>Download PDF reports for records and sharing</div>
+    </div>
+  </div>
+  <div style={{ padding: "0 18px" }}>
+    {[
+      { label: "Monthly Progress Report",  desc: "Client goals and session progress",   onClick: () => generateFinancialReportPDF(invoices, new Date().toLocaleDateString("en-KE", { month: "long", year: "numeric" })) },
+      { label: "Financial Summary",        desc: "All invoices and payment status",      onClick: () => generateFinancialReportPDF(invoices, "All time") },
+      { label: "Attendance Report",        desc: "Sessions completed vs scheduled",      onClick: () => generateAttendanceReportPDF(appointments, clients) },
+      { label: "Therapist Productivity",   desc: "Sessions per therapist this month",    onClick: () => generateAttendanceReportPDF(appointments, clients) },
+      { label: "Parent Engagement Report", desc: "Portal access and payment history",    onClick: () => generateFinancialReportPDF(invoices, "Parent engagement") },
+    ].map((r, i, arr) => (
+      <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 0", borderBottom: i < arr.length - 1 ? "1px solid #f0f4f2" : "none" }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 500, color: "#1a2724" }}>{r.label}</div>
+          <div style={{ fontSize: 11.5, color: "#8aab9e", marginTop: 2 }}>{r.desc}</div>
+        </div>
+        <button
+          onClick={r.onClick}
+          style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid #d6e8e0", background: "white", fontSize: 12.5, cursor: "pointer", color: "#1a8c6e", fontWeight: 500, display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}
+        >
+          ⬇ PDF
+        </button>
+      </div>
+    ))}
+  </div>
+</div>
 
           {/* ── Row 3: Summary cards ── */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14 }}>
