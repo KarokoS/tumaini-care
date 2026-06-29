@@ -13,6 +13,7 @@ import Reports from './pages/Reports'
 import Assessments from './pages/Assessments'
 import Inventory from './pages/Inventory'
 import ParentPortal from './pages/ParentPortal'
+import Import from './pages/Import'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore()
@@ -43,6 +44,7 @@ export default function App() {
         <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
         <Route path="/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
         <Route path="/parent" element={<ParentPortal />} />
+        <Route path="/import" element={<ProtectedRoute><Import /></ProtectedRoute>} />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
