@@ -37,4 +37,64 @@ export async function clientRoutes(fastify: FastifyInstance) {
     const timeline = await getClientTimeline(id)
     return reply.send(timeline)
   })
+  fastify.post('/clients/bulk-import', { preHandler: requireRole('SUPER_ADMIN', 'MANAGER', 'RECEPTIONIST') }, async (request, reply) => {
+    const user = request.user as JWTPayload
+    const { clients } = request.body as { clients: any[] }
+
+    if (!Array.isArray(clients) || clients.length === 0) {
+      return reply.status(422).send({ message: 'No clients provided' })
+    }
+
+    const { prisma } = await import('../../shared/prisma')
+
+    let imported = 0
+    let skipped  = 0
+    const errors: string[] = []
+
+    for (const row of clients) {
+      try {
+        if (row.clientId) {
+          const existing = await prisma.client.findUnique({
+            where: { externalId: row.clientId }
+          })
+          if (existing) {
+            skipped++
+            continue
+          }
+        }
+
+        const dobDate = row.dob ? new Date(row.dob) : new Date()
+        const regDate = row.registrationDate ? new Date(row.registrationDate) : new Date()
+
+        await prisma.client.create({
+          data: {
+            fullName:         row.fullName,
+            dob:              dobDate,
+            gender:           row.gender,
+            diagnosis:        row.diagnosis || null,
+            status:           'ACTIVE',
+            externalId:       row.clientId || null,
+            registrationDate: regDate,
+            branchId:         user.branchId,
+            guardians: {
+              create: {
+                fullName:     row.guardianName,
+                relationship: row.relationship || 'Parent',
+                phone:        row.phone,
+                email:        row.email || null,
+                isPrimary:    true,
+              }
+            }
+          }
+        })
+        imported++
+      } catch (err: any) {
+        errors.push(`${row.fullName || 'Unknown'}: ${err.message}`)
+      }
+    }
+
+    await logAction(request, 'CREATE', 'Client', `bulk-import-${imported}`)
+
+    return reply.send({ imported, skipped, errors })
+  })
 }

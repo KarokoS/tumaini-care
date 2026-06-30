@@ -90,6 +90,8 @@ model Client {
   invoices      Invoice[]
   documents     Document[]
   assessments   Assessment[]
+  externalId       String?  @unique
+  registrationDate DateTime?
 }
 
 model Guardian {
