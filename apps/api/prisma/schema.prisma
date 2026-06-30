@@ -23,6 +23,7 @@ enum TherapyType {
   SENSORY
   GROUP
   PSYCH
+  PHYSIO
 }
 
 enum AppointmentStatus {
@@ -108,19 +109,21 @@ model Guardian {
 }
 
 model Staff {
-  id           String        @id @default(uuid())
+  id           String       @id @default(uuid())
   fullName     String
-  email        String        @unique
+  email        String       @unique
   role         Role
   specialty    TherapyType?
   phone        String?
   pwHash       String
   totpSecret   String?
-  twoFaEnabled Boolean       @default(false)
-  isActive     Boolean       @default(true)
+  twoFaEnabled Boolean      @default(false)
+  isActive     Boolean      @default(true)
+  isTrainee    Boolean      @default(false)
+  institution  String?
   branchId     String
-  createdAt    DateTime      @default(now())
-  branch       Branch        @relation(fields: [branchId], references: [id])
+  createdAt    DateTime     @default(now())
+  branch       Branch       @relation(fields: [branchId], references: [id])
   appointments Appointment[]
   sessions     SessionNote[]
   auditLogs    AuditLog[]

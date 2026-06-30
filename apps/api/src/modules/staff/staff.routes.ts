@@ -9,9 +9,12 @@ export async function staffRoutes(fastify: FastifyInstance) {
   }, async (request, reply) => {
     const user = request.user as JWTPayload
     const staff = await prisma.staff.findMany({
-      where: { branchId: user.branchId, isActive: true },
-      select: { id:true, fullName:true, email:true, role:true, specialty:true, phone:true, isActive:true },
-      orderBy: { fullName: "asc" },
+      where: { branchId: user.branchId },
+      select: {
+        id:true, fullName:true, email:true, role:true, specialty:true,
+        phone:true, isActive:true, isTrainee:true, institution:true,
+      },
+      orderBy: [{ isActive: "desc" }, { fullName: "asc" }],
     })
     return reply.send(staff)
   })
@@ -33,11 +36,41 @@ export async function staffRoutes(fastify: FastifyInstance) {
         role: body.role,
         specialty: body.specialty || null,
         phone: body.phone || null,
+        isTrainee: body.isTrainee ?? false,
+        institution: body.institution || null,
         pwHash,
         branchId: user.branchId,
       },
-      select: { id:true, fullName:true, email:true, role:true, specialty:true, phone:true, isActive:true },
+      select: {
+        id:true, fullName:true, email:true, role:true, specialty:true,
+        phone:true, isActive:true, isTrainee:true, institution:true,
+      },
     })
     return reply.status(201).send(staff)
+  })
+
+  fastify.patch("/staff/:id", {
+    preHandler: requireRole("SUPER_ADMIN","MANAGER")
+  }, async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const body = request.body as any
+    const data: any = {}
+    if (typeof body.isActive === "boolean") data.isActive = body.isActive
+    if (body.fullName) data.fullName = body.fullName
+    if (body.phone !== undefined) data.phone = body.phone
+    if (body.specialty !== undefined) data.specialty = body.specialty
+    if (body.role) data.role = body.role
+    if (typeof body.isTrainee === "boolean") data.isTrainee = body.isTrainee
+    if (body.institution !== undefined) data.institution = body.institution
+
+    const staff = await prisma.staff.update({
+      where: { id },
+      data,
+      select: {
+        id:true, fullName:true, email:true, role:true, specialty:true,
+        phone:true, isActive:true, isTrainee:true, institution:true,
+      },
+    })
+    return reply.send(staff)
   })
 }

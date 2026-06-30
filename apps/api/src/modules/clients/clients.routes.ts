@@ -97,4 +97,44 @@ export async function clientRoutes(fastify: FastifyInstance) {
 
     return reply.send({ imported, skipped, errors })
   })
+  fastify.patch('/clients/:id/status', { preHandler: requireRole('SUPER_ADMIN', 'MANAGER') }, async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const { status } = request.body as { status: string }
+    const { prisma } = await import('../../shared/prisma')
+    const client = await prisma.client.update({ where: { id }, data: { status } })
+    await logAction(request, 'UPDATE', 'Client', id)
+    return reply.send(client)
+  })
+
+  fastify.delete('/clients/:id', { preHandler: requireRole('SUPER_ADMIN') }, async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const { prisma } = await import('../../shared/prisma')
+
+    await prisma.guardian.deleteMany({ where: { clientId: id } })
+    await prisma.document.deleteMany({ where: { clientId: id } })
+
+    const sessionNotes = await prisma.sessionNote.findMany({
+      where: { appointment: { clientId: id } },
+      select: { id: true }
+    })
+    await prisma.document.deleteMany({ where: { sessionNoteId: { in: sessionNotes.map(s => s.id) } } })
+    await prisma.sessionNote.deleteMany({ where: { appointment: { clientId: id } } })
+    await prisma.appointment.deleteMany({ where: { clientId: id } })
+
+    const itps = await prisma.iTP.findMany({ where: { clientId: id }, select: { id: true } })
+    await prisma.goalProgressLog.deleteMany({ where: { goal: { itpId: { in: itps.map(i => i.id) } } } })
+    await prisma.goal.deleteMany({ where: { itpId: { in: itps.map(i => i.id) } } })
+    await prisma.iTP.deleteMany({ where: { clientId: id } })
+
+    const invoices = await prisma.invoice.findMany({ where: { clientId: id }, select: { id: true } })
+    await prisma.payment.deleteMany({ where: { invoiceId: { in: invoices.map(i => i.id) } } })
+    await prisma.invoiceItem.deleteMany({ where: { invoiceId: { in: invoices.map(i => i.id) } } })
+    await prisma.invoice.deleteMany({ where: { clientId: id } })
+
+    await prisma.assessment.deleteMany({ where: { clientId: id } })
+
+    await prisma.client.delete({ where: { id } })
+    await logAction(request, 'DELETE', 'Client', id)
+    return reply.send({ success: true })
+  })
 }

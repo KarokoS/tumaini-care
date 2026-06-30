@@ -7,12 +7,17 @@ export default function Staff() {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [filter, setFilter] = useState("ALL")
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+
   const [fullName, setFullName] = useState("")
   const [email, setEmail] = useState("")
   const [role, setRole] = useState("THERAPIST")
   const [specialty, setSpecialty] = useState("OT")
   const [phone, setPhone] = useState("")
   const [password, setPassword] = useState("")
+  const [isTrainee, setIsTrainee] = useState(false)
+  const [institution, setInstitution] = useState("")
 
   useEffect(() => { loadData() }, [])
 
@@ -26,13 +31,29 @@ export default function Staff() {
     e.preventDefault()
     setSaving(true)
     try {
-      await api.post("/staff", { fullName, email, role, specialty: role==="THERAPIST"?specialty:null, phone, password })
+      await api.post("/staff", {
+        fullName, email, role,
+        specialty: (role === "THERAPIST" || isTrainee) ? specialty : null,
+        phone, password, isTrainee,
+        institution: isTrainee ? institution : null,
+      })
       setShowForm(false)
-      setFullName(""); setEmail(""); setRole("THERAPIST"); setSpecialty("OT"); setPhone(""); setPassword("")
+      setFullName(""); setEmail(""); setRole("THERAPIST"); setSpecialty("OT")
+      setPhone(""); setPassword(""); setIsTrainee(false); setInstitution("")
       loadData()
     } catch(err: any) {
       alert(err.response?.data?.message ?? "Failed to save staff member")
     } finally { setSaving(false) }
+  }
+
+  async function toggleActive(member: any) {
+    try {
+      await api.patch(`/staff/${member.id}`, { isActive: !member.isActive })
+      setOpenMenuId(null)
+      loadData()
+    } catch (err: any) {
+      alert(err.response?.data?.message ?? "Failed to update staff status")
+    }
   }
 
   const roleColors: Record<string,string> = {
@@ -49,8 +70,17 @@ export default function Staff() {
   }
   const specialtyLabel: Record<string,string> = {
     OT:"Occupational Therapy", SPEECH:"Speech Therapy", ABA:"Behavior Analysis",
-    SENSORY:"Sensory Integration", PSYCH:"Psychology", GROUP:"Group Therapy"
+    SENSORY:"Sensory Integration", PSYCH:"Psychology", GROUP:"Group Therapy",
+    PHYSIO:"Physiotherapy"
   }
+
+  const filtered = staff.filter(m => {
+    if (filter === "ALL") return true
+    if (filter === "TRAINEE") return m.isTrainee
+    if (filter === "ACTIVE") return m.isActive
+    if (filter === "INACTIVE") return !m.isActive
+    return true
+  })
 
   return (
     <Layout title="Staff" action={
@@ -60,14 +90,26 @@ export default function Staff() {
       <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:14, marginBottom:20 }}>
         {[
           { label:"Total Staff", value: staff.length, color:"#1a8c6e" },
-          { label:"Therapists", value: staff.filter(s=>s.role==="THERAPIST").length, color:"#2563a8" },
-          { label:"Active", value: staff.filter(s=>s.isActive).length, color:"#d97706" },
-          { label:"Support Staff", value: staff.filter(s=>s.role!=="THERAPIST"&&s.role!=="MANAGER").length, color:"#7c3aed" },
+          { label:"Therapists", value: staff.filter(s=>s.role==="THERAPIST" && !s.isTrainee).length, color:"#2563a8" },
+          { label:"Volunteers / Students", value: staff.filter(s=>s.isTrainee).length, color:"#d97706" },
+          { label:"Active", value: staff.filter(s=>s.isActive).length, color:"#7c3aed" },
         ].map((s, i) => (
           <div key={i} style={{ background:"white", border:"1px solid #d6e8e0", borderRadius:12, padding:"14px 18px" }}>
             <div style={{ fontSize:11, fontWeight:600, color:"#8aab9e", textTransform:"uppercase", marginBottom:6 }}>{s.label}</div>
             <div style={{ fontSize:26, fontWeight:600, color:s.color }}>{s.value}</div>
           </div>
+        ))}
+      </div>
+
+      <div style={{ display:"flex", gap:8, marginBottom:16 }}>
+        {[["ALL","All staff"],["ACTIVE","Active"],["INACTIVE","Inactive"],["TRAINEE","Volunteers / Students"]].map(([val, label]) => (
+          <button
+            key={val}
+            onClick={() => setFilter(val)}
+            style={{ padding:"6px 14px", borderRadius:8, border:"1px solid", borderColor: filter===val?"#1a8c6e":"#d6e8e0", background: filter===val?"#e6f4ef":"white", color: filter===val?"#1a8c6e":"#4a6359", fontSize:12.5, fontWeight:500, cursor:"pointer" }}
+          >
+            {label}
+          </button>
         ))}
       </div>
 
@@ -80,14 +122,15 @@ export default function Staff() {
               <th style={{ padding:"10px 16px", textAlign:"left", fontSize:11, fontWeight:600, color:"#8aab9e", textTransform:"uppercase" }}>Specialty</th>
               <th style={{ padding:"10px 16px", textAlign:"left", fontSize:11, fontWeight:600, color:"#8aab9e", textTransform:"uppercase" }}>Contact</th>
               <th style={{ padding:"10px 16px", textAlign:"left", fontSize:11, fontWeight:600, color:"#8aab9e", textTransform:"uppercase" }}>Status</th>
+              <th style={{ padding:"10px 16px" }}></th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={5} style={{ padding:32, textAlign:"center", color:"#8aab9e" }}>Loading...</td></tr>
-            ) : staff.length === 0 ? (
-              <tr><td colSpan={5} style={{ padding:32, textAlign:"center", color:"#8aab9e" }}>No staff members yet</td></tr>
-            ) : staff.map((member, i) => (
+              <tr><td colSpan={6} style={{ padding:32, textAlign:"center", color:"#8aab9e" }}>Loading...</td></tr>
+            ) : filtered.length === 0 ? (
+              <tr><td colSpan={6} style={{ padding:32, textAlign:"center", color:"#8aab9e" }}>No staff members found</td></tr>
+            ) : filtered.map((member, i) => (
               <tr key={i} style={{ borderBottom:"1px solid #f0f4f2" }}>
                 <td style={{ padding:"12px 16px" }}>
                   <div style={{ display:"flex", alignItems:"center", gap:10 }}>
@@ -97,6 +140,11 @@ export default function Staff() {
                     <div>
                       <div style={{ fontWeight:500, color:"#1a2724" }}>{member.fullName}</div>
                       <div style={{ fontSize:11.5, color:"#8aab9e" }}>{member.email}</div>
+                      {member.isTrainee && (
+                        <div style={{ fontSize:10.5, color:"#d97706", marginTop:2, fontWeight:500 }}>
+                          🎓 {member.institution || "Volunteer / Student"}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </td>
@@ -115,6 +163,24 @@ export default function Staff() {
                   <span style={{ fontSize:11.5, padding:"2px 8px", borderRadius:20, background:member.isActive?"#e6f4ef":"#fde8ed", color:member.isActive?"#1a8c6e":"#d63f5c", fontWeight:500 }}>
                     {member.isActive ? "Active" : "Inactive"}
                   </span>
+                </td>
+                <td style={{ padding:"12px 16px", textAlign:"right", position:"relative" }}>
+                  <button
+                    onClick={() => setOpenMenuId(openMenuId === member.id ? null : member.id)}
+                    style={{ border:"none", background:"none", cursor:"pointer", color:"#8aab9e", fontSize:16, padding:"2px 6px" }}
+                  >
+                    ⋮
+                  </button>
+                  {openMenuId === member.id && (
+                    <div style={{ position:"absolute", right:16, top:"100%", marginTop:4, background:"white", border:"1px solid #d6e8e0", borderRadius:8, boxShadow:"0 4px 16px rgba(0,0,0,0.1)", zIndex:10, minWidth:170, textAlign:"left" }}>
+                      <button
+                        onClick={() => toggleActive(member)}
+                        style={{ display:"block", width:"100%", padding:"8px 14px", border:"none", background:"none", textAlign:"left", fontSize:12.5, color:"#4a6359", cursor:"pointer" }}
+                      >
+                        {member.isActive ? "Mark as left / Inactive" : "Mark as Active"}
+                      </button>
+                    </div>
+                  )}
                 </td>
               </tr>
             ))}
@@ -141,7 +207,7 @@ export default function Staff() {
                     <option value="MANAGER">Manager</option>
                   </select>
                 </div>
-                {role === "THERAPIST" && (
+                {(role === "THERAPIST" || isTrainee) && (
                   <div><label style={{ fontSize:12, color:"#4a6359", display:"block", marginBottom:4 }}>Specialty</label>
                     <select value={specialty} onChange={e => setSpecialty(e.target.value)} style={{ width:"100%", padding:"8px 12px", borderRadius:8, border:"1px solid #d6e8e0", fontSize:13, boxSizing:"border-box" }}>
                       <option value="OT">Occupational Therapy</option>
@@ -149,12 +215,27 @@ export default function Staff() {
                       <option value="ABA">ABA</option>
                       <option value="SENSORY">Sensory</option>
                       <option value="PSYCH">Psychology</option>
+                      <option value="PHYSIO">Physiotherapy</option>
                     </select>
                   </div>
                 )}
                 <div><label style={{ fontSize:12, color:"#4a6359", display:"block", marginBottom:4 }}>Phone</label><input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+254 7XX XXX XXX" style={{ width:"100%", padding:"8px 12px", borderRadius:8, border:"1px solid #d6e8e0", fontSize:13, boxSizing:"border-box" }} /></div>
                 <div><label style={{ fontSize:12, color:"#4a6359", display:"block", marginBottom:4 }}>Password</label><input required type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Min 8 characters" style={{ width:"100%", padding:"8px 12px", borderRadius:8, border:"1px solid #d6e8e0", fontSize:13, boxSizing:"border-box" }} /></div>
               </div>
+
+              <div style={{ background:"#f8faf9", borderRadius:10, padding:"12px 14px", marginBottom:16 }}>
+                <label style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:"#1a2724", cursor:"pointer", marginBottom: isTrainee ? 10 : 0 }}>
+                  <input type="checkbox" checked={isTrainee} onChange={e => setIsTrainee(e.target.checked)} />
+                  This is a volunteer or student on attachment
+                </label>
+                {isTrainee && (
+                  <div>
+                    <label style={{ fontSize:12, color:"#4a6359", display:"block", marginBottom:4 }}>Institution</label>
+                    <input value={institution} onChange={e => setInstitution(e.target.value)} placeholder="e.g. KMTC Nyeri Campus" style={{ width:"100%", padding:"8px 12px", borderRadius:8, border:"1px solid #d6e8e0", fontSize:13, boxSizing:"border-box" }} />
+                  </div>
+                )}
+              </div>
+
               <div style={{ display:"flex", gap:10, justifyContent:"flex-end", marginTop:8 }}>
                 <button type="button" onClick={() => setShowForm(false)} style={{ padding:"9px 16px", borderRadius:8, border:"1px solid #d6e8e0", background:"white", fontSize:13, cursor:"pointer", color:"#4a6359" }}>Cancel</button>
                 <button type="submit" disabled={saving} style={{ padding:"9px 16px", borderRadius:8, border:"none", background:"#1a8c6e", color:"white", fontSize:13, fontWeight:500, cursor:"pointer", opacity:saving?0.7:1 }}>{saving?"Saving...":"Add Staff"}</button>
