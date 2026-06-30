@@ -21,6 +21,7 @@ const NAV_SECTIONS: NavSection[] = [
     { label: "Dashboard",       path: "/dashboard",      icon: "⊞" },
     { label: "Clients",         path: "/clients",        icon: "👥" },
     { label: "Import Clients",  path: "/clients/import", icon: "📥" },
+    { label: "Import Attendance", path: "/attendance/import", icon: "📋" },
     { label: "Schedule",        path: "/schedule",       icon: "📅" },
   ]
   },

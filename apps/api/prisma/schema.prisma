@@ -132,7 +132,7 @@ model Staff {
 model Appointment {
   id          String            @id @default(uuid())
   clientId    String
-  therapistId String
+  therapistId String?
   scheduledAt DateTime
   durationMin Int               @default(50)
   therapyType TherapyType
@@ -142,7 +142,7 @@ model Appointment {
   notes       String?
   createdAt   DateTime          @default(now())
   client      Client            @relation(fields: [clientId], references: [id])
-  therapist   Staff             @relation(fields: [therapistId], references: [id])
+  therapist   Staff?            @relation(fields: [therapistId], references: [id])
   sessionNote SessionNote?
 }
 
