@@ -34,12 +34,12 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'linear-gradient(135deg, #e6f4ef 0%, #f4f7f5 100%)' }}>
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4" style={{ background: '#1a8c6e' }}>
-            <span className="text-white text-2xl font-bold">T</span>
+          <div className="inline-flex items-center justify-center mb-4">
+            <img src="/logo.png" alt="Tumaini St. Thorlak Autism Centre" style={{ width: 96, height: 96, objectFit: 'contain' }} />
           </div>
           <h1 className="text-2xl font-semibold" style={{ color: '#1a2724' }}>Tumaini Care</h1>
           <p className="text-sm mt-1" style={{ color: '#4a6359' }}>
-            St. Thorlak Autism Centre — Nanyuki
+            Tumaini St. Thorlak Autism Centre. Nanyuki
           </p>
         </div>
 

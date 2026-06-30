@@ -83,7 +83,7 @@ export default function Layout({ title, children, action }: LayoutProps) {
         aria-label="Application sidebar"
       >
         <div className={styles.brand}>
-          <div className={styles.logo}>T</div>
+          <img src="/logo.png" alt="Tumaini Logo" style={{ width: 36, height: 36, objectFit: 'contain', flexShrink: 0 }} />
           <div>
             <div className={styles.brandTitle}>Tumaini</div>
             <div className={styles.brandSub}>St. Thorlak Centre</div>
