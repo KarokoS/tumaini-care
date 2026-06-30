@@ -16,13 +16,13 @@ type NavSection = {
 
 const NAV_SECTIONS: NavSection[] = [
   {
-    label: "Main",
-    items: [
-      { label: "Dashboard",    path: "/dashboard",   icon: "⊞" },
-      { label: "Clients",      path: "/clients",     icon: "👥" },
-      { label: "Schedule",     path: "/schedule",    icon: "📅" },
-      { label: "Import Clients", path: "/clients/import", icon: "📥" },
-    ]
+  label: "Main",
+  items: [
+    { label: "Dashboard",       path: "/dashboard",      icon: "⊞" },
+    { label: "Clients",         path: "/clients",        icon: "👥" },
+    { label: "Import Clients",  path: "/clients/import", icon: "📥" },
+    { label: "Schedule",        path: "/schedule",       icon: "📅" },
+  ]
   },
   {
     label: "Therapy",
