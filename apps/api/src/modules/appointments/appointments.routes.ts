@@ -122,12 +122,21 @@ export async function appointmentRoutes(fastify: FastifyInstance) {
           const tKey = row.therapistName.trim().toLowerCase()
           therapistId = therapistCache[tKey]
           if (!therapistId) {
-            const therapist = await prisma.staff.findFirst({
-              where: {
-                branchId: user.branchId,
-                fullName: { equals: row.therapistName.trim(), mode: 'insensitive' }
-              }
-            })
+            const nameParts = row.therapistName.trim().split(" ")
+const firstName = nameParts[0]
+const lastName  = nameParts[nameParts.length - 1]
+
+const therapist = await prisma.staff.findFirst({
+  where: {
+    branchId: user.branchId,
+    OR: [
+      { fullName: { equals: row.therapistName.trim(), mode: 'insensitive' } },
+      { fullName: { startsWith: firstName, mode: 'insensitive' } },
+      { fullName: { endsWith: lastName, mode: 'insensitive' } },
+      { fullName: { contains: firstName, mode: 'insensitive' } },
+    ]
+  }
+})
             if (therapist) {
               therapistId = therapist.id
               therapistCache[tKey] = therapistId

@@ -26,7 +26,25 @@ function excelDateToISO(value: any): string {
   }
   const parsed = new Date(value)
   if (!isNaN(parsed.getTime())) return parsed.toISOString().split("T")[0]
-  return String(value).trim()
+  return ""
+}
+
+function excelTimeToHHMM(value: any): string {
+  if (!value && value !== 0) return "09:00"
+  // Excel stores time as decimal fraction of a day
+  if (typeof value === "number" && value < 1) {
+    const totalMinutes = Math.round(value * 24 * 60)
+    const hours   = Math.floor(totalMinutes / 60)
+    const minutes = totalMinutes % 60
+    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`
+  }
+  // String time like "9:05" or "14:00"
+  const str = String(value).trim()
+  const match = str.match(/^(\d{1,2}):(\d{2})/)
+  if (match) {
+    return `${String(parseInt(match[1])).padStart(2, "0")}:${match[2]}`
+  }
+  return "09:00"
 }
 
 function mapStatus(status: string, completed: boolean, reason: string): string {
@@ -77,19 +95,23 @@ export default function ImportAttendance() {
 
       const parsed: ParsedRow[] = json.map((r) => {
         const getCol = (...names: string[]) => {
-          for (const n of names) {
-            const key = Object.keys(r).find(k => k.toLowerCase().includes(n.toLowerCase()))
-            if (key && r[key] !== "") return r[key]
-          }
-          return ""
-        }
+  for (const n of names) {
+    const key = Object.keys(r).find(k =>
+      k.toLowerCase().replace(/[\s_\-★]/g, "").includes(
+        n.toLowerCase().replace(/[\s_\-★]/g, "")
+      )
+    )
+    if (key && r[key] !== "") return r[key]
+  }
+  return ""
+}
 
         const childName     = String(getCol("child_name")).trim()
         const sessionType    = String(getCol("session_type")).trim()
         const therapistName  = String(getCol("therapist_name")).trim()
         const date            = excelDateToISO(getCol("attend_date"))
-        const startTime        = String(getCol("start_time")).trim()
-        const endTime           = String(getCol("end_time")).trim()
+        const startTime = excelTimeToHHMM(getCol("start_time", "start"))
+        const endTime   = excelTimeToHHMM(getCol("end_time", "end"))
         const status             = String(getCol("status")).trim()
         const absenceReason       = String(getCol("absence_reason")).trim()
         const completedRaw         = String(getCol("session_completed")).trim().toUpperCase()
