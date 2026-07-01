@@ -60,4 +60,12 @@ async function start() {
     console.log('╚════════════════════════════════════════╝')
   } catch (err) { fastify.log.error(err); process.exit(1) }
 }
+// Keep-alive ping every 14 minutes to prevent Render free tier sleep
+if (process.env.RENDER_EXTERNAL_URL) {
+  setInterval(async () => {
+    try {
+      await fetch(process.env.RENDER_EXTERNAL_URL + "/api/v1/health")
+    } catch {}
+  }, 14 * 60 * 1000)
+}
 start()
