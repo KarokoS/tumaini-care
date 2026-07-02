@@ -68,8 +68,9 @@ export async function appointmentRoutes(fastify: FastifyInstance) {
   })
 
   fastify.post('/appointments/bulk-import', {
-    preHandler: requireRole('SUPER_ADMIN', 'MANAGER', 'RECEPTIONIST')
-  }, async (request, reply) => {
+  preHandler: requireRole('SUPER_ADMIN', 'MANAGER', 'RECEPTIONIST'),
+  config: { rateLimit: { max: 10, timeWindow: '1 minute' } }
+  }, async (request, reply) => { 
     const user = request.user as JWTPayload
     const { rows } = request.body as { rows: any[] }
 
