@@ -27,6 +27,13 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config
 
+    // Retry once on network error (Render wake-up)
+    if (!error.response && !originalRequest._retry) {
+      originalRequest._retry = true
+      await new Promise(resolve => setTimeout(resolve, 3000))
+      return api(originalRequest)
+    }
+
     if (error.response?.status === 401 && !originalRequest._retry) {
       const refreshToken = localStorage.getItem('refreshToken')
 

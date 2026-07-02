@@ -154,16 +154,33 @@ const therapist = await prisma.staff.findFirst({
           continue
         }
 
-        await prisma.appointment.create({
-          data: {
-            clientId,
-            therapistId: therapistId ?? null,
-            therapyType: row.therapyType,
-            scheduledAt,
-            status: row.status,
-          }
-        })
-        imported++
+        // Check for existing appointment on same date, client, therapy type
+const existing = await prisma.appointment.findFirst({
+  where: {
+    clientId,
+    therapyType: row.therapyType,
+    scheduledAt: {
+      gte: new Date(`${row.date}T00:00:00`),
+      lte: new Date(`${row.date}T23:59:59`),
+    }
+  }
+})
+
+if (existing) {
+  skipped++
+  continue
+}
+
+await prisma.appointment.create({
+  data: {
+    clientId,
+    therapistId: therapistId ?? null,
+    therapyType: row.therapyType,
+    scheduledAt,
+    status: row.status,
+  }
+})
+imported++
       } catch (err: any) {
         errors.push(`${row.childName ?? 'Unknown'}: ${err.message}`)
         skipped++
