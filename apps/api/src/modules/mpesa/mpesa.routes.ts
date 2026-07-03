@@ -15,7 +15,18 @@ async function getAccessToken(): Promise<string> {
     `${MPESA_BASE}/oauth/v1/generate?grant_type=client_credentials`,
     { headers: { Authorization: `Basic ${auth}` } }
   )
-  const data = await res.json() as { access_token: string }
+
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`Daraja auth failed: ${res.status} ${text}`)
+  }
+
+  const data = await res.json() as { access_token?: string; errorMessage?: string }
+
+  if (!data.access_token) {
+    throw new Error(`No access token in Daraja response: ${JSON.stringify(data)}`)
+  }
+
   return data.access_token
 }
 
@@ -45,7 +56,6 @@ export async function mpesaRoutes(fastify: FastifyInstance) {
   }, async (request, reply) => {
     const { invoiceId, phone } = request.body as { invoiceId: string; phone: string }
 
-    // Format and validate phone
     const formattedPhone = phone
       .replace(/\s+/g, "")
       .replace(/^0/, "254")
@@ -57,7 +67,6 @@ export async function mpesaRoutes(fastify: FastifyInstance) {
       })
     }
 
-    // Get invoice
     const invoice = await prisma.invoice.findUnique({
       where: { id: invoiceId },
       include: { client: { select: { fullName: true } } }
@@ -70,6 +79,14 @@ export async function mpesaRoutes(fastify: FastifyInstance) {
       const timestamp = getTimestamp()
       const password  = getPassword(timestamp)
       const amount    = Math.ceil(parseFloat(invoice.amountKes.toString()))
+
+      fastify.log.info({
+        shortcode: process.env.MPESA_SHORTCODE,
+        env: process.env.MPESA_ENV,
+        callbackUrl: process.env.MPESA_CALLBACK_URL,
+        amount,
+        phone: formattedPhone,
+      }, "Initiating STK Push")
 
       const stkRes = await fetch(`${MPESA_BASE}/mpesa/stkpush/v1/processrequest`, {
         method: "POST",
@@ -93,10 +110,11 @@ export async function mpesaRoutes(fastify: FastifyInstance) {
       })
 
       const stkData = await stkRes.json() as {
-        ResponseCode?: string
+        ResponseCode?:      string
         CheckoutRequestID?: string
-        errorMessage?: string
-        ResultDesc?: string
+        errorCode?:         string
+        errorMessage?:      string
+        ResultDesc?:        string
       }
 
       fastify.log.info({ stkData }, "Daraja STK response")
@@ -109,7 +127,7 @@ export async function mpesaRoutes(fastify: FastifyInstance) {
         return reply.send({
           success:           true,
           checkoutRequestId: stkData.CheckoutRequestID,
-          message:           "STK push sent. Ask the customer to check their phone."
+          message:           "STK push sent. Ask the customer to check their phone.",
         })
       } else {
         return reply.status(400).send({
@@ -117,13 +135,12 @@ export async function mpesaRoutes(fastify: FastifyInstance) {
         })
       }
     } catch (err: any) {
-      fastify.log.error(err)
-      return reply.status(500).send({ message: "Could not connect to M-Pesa. Check your credentials." })
+      fastify.log.error({ err: err.message }, "STK Push error")
+      return reply.status(500).send({ message: err.message ?? "Could not connect to M-Pesa." })
     }
   })
 
-  // ── Callback from Safaricom ──
-  // This endpoint must be public — no auth guard
+  // ── Callback from Safaricom — no auth guard ──
   fastify.post("/mpesa/callback", async (request, reply) => {
     const body = request.body as any
     const stk  = body?.Body?.stkCallback
@@ -145,19 +162,15 @@ export async function mpesaRoutes(fastify: FastifyInstance) {
       await prisma.invoice.updateMany({
         where: { mpesaCheckoutId: checkoutRequestId },
         data: {
-          status:    "PAID",
-          paidAt:    new Date(),
-          mpesaRef:  mpesaRef ?? null,
+          status:   "PAID",
+          paidAt:   new Date(),
+          mpesaRef: mpesaRef ?? null,
         }
       })
 
-      fastify.log.info(
-        `✓ M-Pesa confirmed: ${mpesaRef} · KSh ${amount} · from ${phone}`
-      )
+      fastify.log.info(`✓ M-Pesa confirmed: ${mpesaRef} · KSh ${amount} · from ${phone}`)
     } else {
-      fastify.log.warn(
-        `✗ M-Pesa STK failed/cancelled · CheckoutRequestID: ${checkoutRequestId}`
-      )
+      fastify.log.warn(`✗ M-Pesa STK failed/cancelled · CheckoutRequestID: ${checkoutRequestId}`)
     }
 
     return reply.send({ ResultCode: 0, ResultDesc: "Accepted" })
@@ -169,15 +182,17 @@ export async function mpesaRoutes(fastify: FastifyInstance) {
   }, async (request, reply) => {
     const { checkoutRequestId } = request.params as { checkoutRequestId: string }
 
-    // First check our own DB — fastest and works even if Daraja is slow
     const invoice = await prisma.invoice.findFirst({
       where: { mpesaCheckoutId: checkoutRequestId }
     })
     if (invoice?.status === "PAID") {
-      return reply.send({ paid: true, resultCode: "0", resultDesc: "The service request is processed successfully." })
+      return reply.send({
+        paid:       true,
+        resultCode: "0",
+        resultDesc: "The service request is processed successfully.",
+      })
     }
 
-    // Then query Daraja
     try {
       const token     = await getAccessToken()
       const timestamp = getTimestamp()
@@ -198,9 +213,8 @@ export async function mpesaRoutes(fastify: FastifyInstance) {
       })
 
       const data = await res.json() as { ResultCode?: string; ResultDesc?: string }
-      const paid  = data.ResultCode === "0"
+      const paid = data.ResultCode === "0"
 
-      // If Daraja confirms paid but callback hadn't arrived yet, update now
       if (paid && invoice) {
         await prisma.invoice.update({
           where: { id: invoice.id },
