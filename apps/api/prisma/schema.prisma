@@ -93,6 +93,8 @@ model Client {
   assessments   Assessment[]
   externalId       String?  @unique
   registrationDate DateTime?
+  isProBono     Boolean  @default(false)
+  proBonoReason String?
 }
 
 model Guardian {

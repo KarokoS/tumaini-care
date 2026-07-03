@@ -73,4 +73,17 @@ export async function staffRoutes(fastify: FastifyInstance) {
     })
     return reply.send(staff)
   })
+  fastify.delete("/staff/:id", {
+    preHandler: requireRole("SUPER_ADMIN", "MANAGER")
+  }, async (request, reply) => {
+    const { id } = request.params as { id: string }
+    await prisma.staff.update({
+      where: { id },
+      data: {
+        isActive: false,
+        email: `deleted_${Date.now()}_${id}@deleted.com`
+      }
+    })
+    return reply.send({ success: true })
+  })
 }

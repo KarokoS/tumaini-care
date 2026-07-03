@@ -14,6 +14,7 @@ type Client = {
   diagnosis?: string | null
   status: string
   guardians?: Guardian[]
+  isProBono?: boolean
 }
 
 function errorMessage(err: unknown, fallback: string) {
@@ -91,6 +92,16 @@ export default function Clients() {
       loadClients()
     } catch (err) {
       alert(errorMessage(err, 'Failed to update status'))
+    }
+  }
+
+  async function toggleProBono(client: Client) {
+    try {
+      await api.patch(`/clients/${client.id}`, { isProBono: !client.isProBono })
+      setOpenMenuId(null)
+      loadClients()
+    } catch (err) {
+      alert(errorMessage(err, 'Failed to update pro bono status'))
     }
   }
 
@@ -187,6 +198,14 @@ export default function Clients() {
                             style={{ display:"block", width:"100%", padding:"8px 14px", border:"none", background:"none", textAlign:"left", fontSize:12.5, color:"#4a6359", cursor:"pointer" }}
                           >
                             Mark as {client.status === "ACTIVE" ? "Inactive" : "Active"}
+                          </button>
+                        )}
+                        {isSuperAdmin && (
+                          <button
+                            onClick={() => toggleProBono(client)}
+                            style={{ display:"block", width:"100%", padding:"8px 14px", border:"none", background:"none", textAlign:"left", fontSize:12.5, color:"#d97706", cursor:"pointer", borderTop:"1px solid #f0f4f2" }}
+                          >
+                            {client.isProBono ? "Remove Pro Bono" : "Mark as Pro Bono"}
                           </button>
                         )}
                         {isSuperAdmin && (

@@ -12,7 +12,11 @@ export async function createClient(data: { fullName: string; dob: string; gender
   const { guardian, ...clientData } = data
   return prisma.client.create({ data: { ...clientData, dob: new Date(clientData.dob), guardians: { create: { ...guardian, isPrimary: true } } }, include: { guardians: true } })
 }
-export async function updateClient(id: string, data: Partial<{ fullName: string; diagnosis: string; coOccurring: string; allergies: string; status: string; schoolName: string }>) {
+export async function updateClient(id: string, data: Partial<{
+  fullName: string; diagnosis: string; coOccurring: string;
+  allergies: string; status: string; schoolName: string;
+  isProBono: boolean; proBonoReason: string; referralSrc: string;
+}>) {
   const existing = await prisma.client.findUnique({ where: { id } })
   if (!existing) throw new NotFoundError('Client')
   return prisma.client.update({ where: { id }, data })
