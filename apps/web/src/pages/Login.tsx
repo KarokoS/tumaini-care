@@ -22,7 +22,13 @@ export default function Login() {
     const res = await api.post('/auth/login', { email, password })
     const { accessToken, refreshToken, user } = res.data
     login(user, accessToken, refreshToken)
-    window.location.href = user.role === 'PARENT' ? '/parent' : '/dashboard'
+    if (user.role === 'PARENT') {
+  window.location.href = '/parent'
+} else if (user.mustChangePassword) {
+  window.location.href = '/change-password'
+} else {
+  window.location.href = '/dashboard'
+}
   } catch (err: unknown) {
     setError(errorMessage(err, 'Login failed. Please try again.'))
   } finally {

@@ -8,7 +8,15 @@ interface User {
   branchId: string
   branchName: string
 }
-
+interface User {
+  id: string
+  email: string
+  fullName: string
+  role: string
+  branchId: string
+  branchName: string
+  mustChangePassword?: boolean
+}
 interface AuthStore {
   user: User | null
   isAuthenticated: boolean

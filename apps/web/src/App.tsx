@@ -16,6 +16,7 @@ import ParentPortal from './pages/ParentPortal'
 import ImportClients from './pages/ImportClients'
 import ImportAttendance from './pages/ImportAttendance'
 import ClientDetail from './pages/ClientDetail'
+import ChangePassword from './pages/ChangePassword'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore()
@@ -46,6 +47,7 @@ export default function App() {
         <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
         <Route path="/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
         <Route path="/parent" element={<ParentPortal />} />
+        <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
         <Route path="/clients/import" element={<ProtectedRoute><ImportClients /></ProtectedRoute>} />
         <Route path="/attendance/import" element={<ProtectedRoute><ImportAttendance /></ProtectedRoute>} />
         <Route path="/clients/:id" element={<ProtectedRoute><ClientDetail /></ProtectedRoute>} />

@@ -23,6 +23,7 @@ const THERAPY_COLORS: Record<string, string> = {
   SENSORY: "#f97316",
   GROUP:   "#eab308",
   PSYCH:   "#ec4899",
+  PHYSIO:  '#0891b2',
 }
 
 export default function Reports() {

@@ -19,6 +19,7 @@ const LOCATION_COLORS: Record<string, string> = {
   "Gym Room":     "#a855f7",
   "Reception":    "#ec4899",
   "Store":        "#8aab9e",
+  "Physio Room":  "#0891b2",
 }
 
 // Seed data matching the prototype

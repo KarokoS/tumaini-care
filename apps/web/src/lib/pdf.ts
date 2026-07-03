@@ -21,10 +21,10 @@ function addHeader(doc: jsPDF, title: string, subtitle?: string) {
   doc.setTextColor(255, 255, 255)
   doc.setFontSize(11)
   doc.setFont("helvetica", "bold")
-  doc.text("Tumaini St. Thorlak Autism Centre", 22, 7.5)
+  doc.text("Nanyuki, Laikipia, Kenya · Tel: +254 797 496 129 · www.tumainiautismcentre.adnyeri.org", 22, 12.5)
   doc.setFontSize(7.5)
   doc.setFont("helvetica", "normal")
-  doc.text("Nanyuki, Laikipia · app.tumaini.ke", 22, 12.5)
+  doc.text("Nanyuki, Laikipia, Kenya · Tel: +254 797 496 129 · www.tumainiautismcentre.adnyeri.org", 22, 12.5)
   // Page title
   doc.setTextColor(...DARK)
   doc.setFontSize(14)
@@ -200,7 +200,7 @@ export function generateInvoicePDF(invoice: any) {
     doc.text("Pay via M-Pesa Paybill", 18, finalY + 7)
     doc.setFont("helvetica", "normal")
     doc.setTextColor(...DARK)
-    doc.text("Paybill Number: 880100   |   Account Number: 411511", 18, finalY + 13)
+    doc.text("Paybill: 880100  |  Account No: 411511  |  Name: Tumaini St. Thorlak Autism Centre", 18, finalY + 13)
     doc.text(`Amount: KSh ${parseFloat(invoice.amountKes).toLocaleString()}`, 18, finalY + 19)
   }
 

@@ -49,7 +49,7 @@ export default function Sessions() {
 
   const COLORS: Record<string,string> = {
     OT:"#3b82f6", SPEECH:"#22c55e", ABA:"#a855f7",
-    SENSORY:"#f97316", GROUP:"#eab308", PSYCH:"#ec4899"
+    SENSORY:"#f97316", GROUP:"#eab308", PSYCH:"#ec4899", PHYSIO:  '#0891b2',
   }
 
   const filtered = filter === "ALL"
