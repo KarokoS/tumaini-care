@@ -2,6 +2,7 @@ import { FastifyInstance } from "fastify"
 import { prisma } from "../../shared/prisma"
 import { requireRole, JWTPayload } from "../../shared/middleware/rbac"
 import bcrypt from "bcryptjs"
+import { sendWelcomeEmail } from '../../shared/email'
 
 export async function staffRoutes(fastify: FastifyInstance) {
   fastify.get("/staff", {
@@ -46,6 +47,11 @@ export async function staffRoutes(fastify: FastifyInstance) {
         phone:true, isActive:true, isTrainee:true, institution:true,
       },
     })
+    try {
+  await sendWelcomeEmail(body.email, body.fullName, body.password)
+} catch (err) {
+  fastify.log.warn({ err: String(err) }, 'Welcome email failed to send')
+}
     return reply.status(201).send(staff)
   })
 

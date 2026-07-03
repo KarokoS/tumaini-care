@@ -2,6 +2,10 @@
 import { z } from 'zod'
 import { loginStaff, getStaffById } from './auth.service'
 import { requireAnyRole, JWTPayload } from '../../shared/middleware/rbac'
+import crypto from 'crypto'
+import { sendPasswordResetEmail } from '../../shared/email'
+import { prisma } from '../../shared/prisma'
+import bcrypt from 'bcryptjs'
 
 const loginSchema = z.object({ email: z.string().email(), password: z.string().min(6) })
 
@@ -48,5 +52,52 @@ export async function authRoutes(fastify: FastifyInstance) {
 
   fastify.post('/auth/logout', { preHandler: requireAnyRole() }, async (_request, reply) => {
     return reply.send({ message: 'Logged out successfully' })
+  })
+
+  // ── Request password reset ──
+  fastify.post('/auth/forgot-password', async (request, reply) => {
+    const { email } = request.body as { email: string }
+    const staff = await prisma.staff.findUnique({ where: { email: email.toLowerCase().trim() } })
+
+    // Always return success to prevent email enumeration
+    if (!staff) return reply.send({ message: 'If that email exists, a reset link has been sent.' })
+
+    const token     = crypto.randomBytes(32).toString('hex')
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000) // 1 hour
+
+    await prisma.staff.update({
+      where: { id: staff.id },
+      data: { resetToken: token, resetTokenExpiry: expiresAt } as any
+    })
+
+    try {
+      await sendPasswordResetEmail(staff.email, staff.fullName, token)
+    } catch (err) {
+      fastify.log.error(err instanceof Error ? err : new Error(String(err)), 'Failed to send reset email')
+    }
+
+    return reply.send({ message: 'If that email exists, a reset link has been sent.' })
+  })
+
+  // ── Reset password with token ──
+  fastify.post('/auth/reset-password', async (request, reply) => {
+    const { token, newPassword } = request.body as { token: string; newPassword: string }
+
+    const staff = await prisma.staff.findFirst({
+      where: {
+        resetToken: token,
+        resetTokenExpiry: { gt: new Date() }
+      } as any
+    })
+
+    if (!staff) return reply.status(400).send({ message: 'Invalid or expired reset link. Please request a new one.' })
+
+    const pwHash = await bcrypt.hash(newPassword, 12)
+    await prisma.staff.update({
+      where: { id: staff.id },
+      data: { pwHash, mustChangePassword: false, resetToken: null, resetTokenExpiry: null } as any
+    })
+
+    return reply.send({ message: 'Password reset successfully. You can now log in.' })
   })
 }

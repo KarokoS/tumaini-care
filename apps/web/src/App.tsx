@@ -17,6 +17,7 @@ import ImportClients from './pages/ImportClients'
 import ImportAttendance from './pages/ImportAttendance'
 import ClientDetail from './pages/ClientDetail'
 import ChangePassword from './pages/ChangePassword'
+import ResetPassword from './pages/ResetPassword'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore()
@@ -51,6 +52,7 @@ export default function App() {
         <Route path="/clients/import" element={<ProtectedRoute><ImportClients /></ProtectedRoute>} />
         <Route path="/attendance/import" element={<ProtectedRoute><ImportAttendance /></ProtectedRoute>} />
         <Route path="/clients/:id" element={<ProtectedRoute><ClientDetail /></ProtectedRoute>} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>

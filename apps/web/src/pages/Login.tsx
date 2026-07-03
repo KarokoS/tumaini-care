@@ -96,6 +96,11 @@ export default function Login() {
             >
               {loading ? 'Signing in...' : 'Sign in'}
             </button>
+            <div style={{ textAlign:"center", marginTop:12 }}>
+  <a href="/reset-password" style={{ fontSize:12.5, color:"#8aab9e", textDecoration:"none" }}>
+    Forgot your password?
+  </a>
+</div>
           </form>
 
           <div className="mt-6 pt-6 text-center" style={{ borderTop: '1px solid #f0f4f2' }}>

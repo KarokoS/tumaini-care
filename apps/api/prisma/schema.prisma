@@ -129,6 +129,9 @@ model Staff {
   appointments Appointment[]
   sessions     SessionNote[]
   auditLogs    AuditLog[]
+  mustChangePassword Boolean  @default(true)
+  resetToken         String?
+  resetTokenExpiry   DateTime?
 }
 
 model Appointment {
