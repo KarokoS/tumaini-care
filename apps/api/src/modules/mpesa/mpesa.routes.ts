@@ -99,6 +99,8 @@ export async function mpesaRoutes(fastify: FastifyInstance) {
         ResultDesc?: string
       }
 
+      fastify.log.info({ stkData }, "Daraja STK response")
+
       if (stkData.ResponseCode === "0" && stkData.CheckoutRequestID) {
         await prisma.invoice.update({
           where: { id: invoiceId },
