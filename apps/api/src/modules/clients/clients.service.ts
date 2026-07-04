@@ -12,14 +12,24 @@ export async function createClient(data: { fullName: string; dob: string; gender
   const { guardian, ...clientData } = data
   return prisma.client.create({ data: { ...clientData, dob: new Date(clientData.dob), guardians: { create: { ...guardian, isPrimary: true } } }, include: { guardians: true } })
 }
-export async function updateClient(id: string, data: Partial<{
-  fullName: string; diagnosis: string; coOccurring: string;
-  allergies: string; status: string; schoolName: string;
-  isProBono: boolean; proBonoReason: string; referralSrc: string;
-}>) {
+export async function updateClient(id: string, data: any) {
   const existing = await prisma.client.findUnique({ where: { id } })
   if (!existing) throw new NotFoundError('Client')
-  return prisma.client.update({ where: { id }, data })
+
+  const allowed: any = {}
+  if (data.fullName)      allowed.fullName      = data.fullName
+  if (data.dob)           allowed.dob           = new Date(data.dob)
+  if (data.gender)        allowed.gender        = data.gender
+  if (data.diagnosis !== undefined)   allowed.diagnosis    = data.diagnosis
+  if (data.coOccurring !== undefined) allowed.coOccurring  = data.coOccurring
+  if (data.allergies !== undefined)   allowed.allergies    = data.allergies
+  if (data.status)        allowed.status        = data.status
+  if (data.schoolName !== undefined)  allowed.schoolName   = data.schoolName
+  if (data.referralSrc !== undefined) allowed.referralSrc  = data.referralSrc
+  if (typeof data.isProBono === 'boolean') allowed.isProBono = data.isProBono
+  if (data.proBonoReason !== undefined)    allowed.proBonoReason = data.proBonoReason
+
+  return prisma.client.update({ where: { id }, data: allowed })
 }
 export async function getClientTimeline(clientId: string) {
   const [appointments, progressLogs, invoices] = await Promise.all([
