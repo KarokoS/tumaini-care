@@ -262,14 +262,85 @@ export default function Reports() {
             </div>
           </div>
 
-          {/* ── Generate Reports panel ── */}
-  <div style={{ background: "white", border: "1px solid #d6e8e0", borderRadius: 16, overflow: "hidden", marginBottom: 14 }}>
-  <div style={{ padding: "14px 18px", borderBottom: "1px solid #d6e8e0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-    <div>
-      <div style={{ fontSize: 13.5, fontWeight: 600, color: "#1a2724" }}>Generate Reports</div>
-      <div style={{ fontSize: 11.5, color: "#8aab9e", marginTop: 2 }}>Download PDF reports for records and sharing</div>
-    </div>
+          {/* ── Therapist Workload Chart ── */}
+<div style={{ background:"white", border:"1px solid #d6e8e0", borderRadius:16, overflow:"hidden", marginTop:14 }}>
+  <div style={{ padding:"14px 18px", borderBottom:"1px solid #d6e8e0" }}>
+    <div style={{ fontSize:13.5, fontWeight:600, color:"#1a2724" }}>Therapist Workload</div>
+    <div style={{ fontSize:11.5, color:"#8aab9e", marginTop:2 }}>Sessions per therapist — all time</div>
   </div>
+  <div style={{ padding:"20px 18px", height:280 }}>
+    {(() => {
+      const workload: Record<string, { name: string; count: number; completed: number }> = {}
+      appointments.forEach((a: any) => {
+        const name = a.therapist?.fullName ?? "Unassigned"
+        if (!workload[name]) workload[name] = { name, count: 0, completed: 0 }
+        workload[name].count++
+        if (a.status === "COMPLETED") workload[name].completed++
+      })
+      const sorted = Object.values(workload).sort((a, b) => b.count - a.count)
+
+      if (sorted.length === 0) return (
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100%", color:"#8aab9e", fontSize:13 }}>
+          No session data yet
+        </div>
+      )
+
+      const workloadBarData = {
+        labels: sorted.map(t => t.name),
+        datasets: [
+          {
+            label: "Total Sessions",
+            data: sorted.map(t => t.count),
+            backgroundColor: "#1a8c6e99",
+            borderColor: "#1a8c6e",
+            borderWidth: 1,
+            borderRadius: 4,
+          },
+          {
+            label: "Completed",
+            data: sorted.map(t => t.completed),
+            backgroundColor: "#2563a899",
+            borderColor: "#2563a8",
+            borderWidth: 1,
+            borderRadius: 4,
+          },
+        ]
+      }
+
+      const workloadOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: "bottom" as const, labels: { font: { size: 11 }, boxWidth: 10, padding: 12 } },
+          tooltip: {
+            callbacks: {
+              afterLabel: (ctx: any) => {
+                const t = sorted[ctx.dataIndex]
+                const rate = t.count > 0 ? Math.round((t.completed / t.count) * 100) : 0
+                return `Completion rate: ${rate}%`
+              }
+            }
+          }
+        },
+        scales: {
+          x: { grid: { display: false } },
+          y: { grid: { color: "#d6e8e040" }, ticks: { precision: 0 } },
+        },
+      }
+
+      return <Bar data={workloadBarData} options={workloadOptions} />
+    })()}
+  </div>
+</div>
+
+          {/* ── Generate Reports panel ── */}
+          <div style={{ background: "white", border: "1px solid #d6e8e0", borderRadius: 16, overflow: "hidden", marginBottom: 14 }}>
+          <div style={{ padding: "14px 18px", borderBottom: "1px solid #d6e8e0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+          <div style={{ fontSize: 13.5, fontWeight: 600, color: "#1a2724" }}>Generate Reports</div>
+          <div style={{ fontSize: 11.5, color: "#8aab9e", marginTop: 2 }}>Download PDF reports for records and sharing</div>
+        </div>
+        </div>
   <div style={{ padding: "0 18px" }}>
     {[
       { label: "Monthly Progress Report",  desc: "Client goals and session progress",   onClick: () => generateFinancialReportPDF(invoices, new Date().toLocaleDateString("en-KE", { month: "long", year: "numeric" })) },
