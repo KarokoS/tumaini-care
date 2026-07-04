@@ -3,7 +3,7 @@ import Layout from "../components/Layout"
 import api from '../lib/api'
 
 const HOURS = ['8:00', '9:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00']
-const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+const DAYS  = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
 const COLORS: Record<string, string> = {
   OT:      '#3b82f6',
   SPEECH:  '#22c55e',
@@ -14,15 +14,17 @@ const COLORS: Record<string, string> = {
   PHYSIO:  '#0891b2',
 }
 
-type Client = { id: string; fullName: string }
+type Client      = { id: string; fullName: string }
 type StaffMember = { id: string; fullName: string; role: string }
 type Appointment = {
-  id: string
+  id:          string
   scheduledAt: string
   therapyType: string
-  status: string
-  client?: Client | null
-  therapist?: { fullName: string } | null
+  status:      string
+  durationMin: number
+  notes:       string
+  client?:     Client | null
+  therapist?:  { id: string; fullName: string } | null
 }
 type ApiList<T> = { data: T[] }
 
@@ -33,29 +35,33 @@ function errorMessage(err: unknown, fallback: string) {
 
 export default function Schedule() {
   const [appointments, setAppointments] = useState<Appointment[]>([])
-  const [clients, setClients] = useState<Client[]>([])
-  const [staff, setStaff] = useState<StaffMember[]>([])
-  const [loading, setLoading] = useState(true)
-  const [showForm, setShowForm] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [weekOffset, setWeekOffset] = useState(0)
-  const [clientId, setClientId] = useState('')
+  const [clients, setClients]           = useState<Client[]>([])
+  const [staff, setStaff]               = useState<StaffMember[]>([])
+  const [loading, setLoading]           = useState(true)
+  const [showForm, setShowForm]         = useState(false)
+  const [saving, setSaving]             = useState(false)
+  const [weekOffset, setWeekOffset]     = useState(0)
+  const [editAppt, setEditAppt]         = useState<Appointment | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<Appointment | null>(null)
+  const [deleting, setDeleting]         = useState(false)
+  const [selectedAppt, setSelectedAppt] = useState<Appointment | null>(null)
+
+  const [clientId,    setClientId]    = useState('')
   const [therapistId, setTherapistId] = useState('')
   const [therapyType, setTherapyType] = useState('OT')
   const [scheduledAt, setScheduledAt] = useState('')
   const [durationMin, setDurationMin] = useState('50')
-  const [notes, setNotes] = useState('')
+  const [notes, setNotes]             = useState('')
+  const [status, setStatus]           = useState('SCHEDULED')
 
-  useEffect(() => {
-    loadData()
-  }, [])
+  useEffect(() => { loadData() }, [])
 
   function loadData() {
     setLoading(true)
     Promise.all([
       api.get<Appointment[]>('/appointments').catch((): ApiList<Appointment> => ({ data: [] })),
-      api.get<Client[]>('/clients').catch((): ApiList<Client> => ({ data: [] })),
-      api.get<StaffMember[]>('/staff').catch((): ApiList<StaffMember> => ({ data: [] })),
+      api.get<Client[]>('/clients').catch(():     ApiList<Client>      => ({ data: [] })),
+      api.get<StaffMember[]>('/staff').catch(():  ApiList<StaffMember> => ({ data: [] })),
     ]).then(([a, c, s]) => {
       setAppointments(a.data)
       setClients(c.data)
@@ -63,11 +69,34 @@ export default function Schedule() {
     }).finally(() => setLoading(false))
   }
 
+  function openAdd() {
+    setEditAppt(null)
+    setClientId(''); setTherapistId(''); setTherapyType('OT')
+    setScheduledAt(''); setDurationMin('50'); setNotes(''); setStatus('SCHEDULED')
+    setShowForm(true)
+  }
+
+  function openEdit(appt: Appointment) {
+    setEditAppt(appt)
+    setClientId(appt.client?.id ?? '')
+    setTherapistId(appt.therapist?.id ?? '')
+    setTherapyType(appt.therapyType)
+    const d = new Date(appt.scheduledAt)
+    const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000)
+      .toISOString().slice(0, 16)
+    setScheduledAt(local)
+    setDurationMin(String(appt.durationMin))
+    setNotes(appt.notes ?? '')
+    setStatus(appt.status)
+    setSelectedAppt(null)
+    setShowForm(true)
+  }
+
   function getWeekDates() {
-    const now = new Date()
-    const day = now.getDay()
+    const now    = new Date()
+    const day    = now.getDay()
     const monday = new Date(now)
-    const diff = day === 0 ? 6 : day - 1
+    const diff   = day === 0 ? 6 : day - 1
     monday.setDate(now.getDate() - diff + weekOffset * 7)
     monday.setHours(0, 0, 0, 0)
     return DAYS.map((_, i) => {
@@ -83,9 +112,9 @@ export default function Schedule() {
       const d = new Date(a.scheduledAt)
       return (
         d.getFullYear() === date.getFullYear() &&
-        d.getMonth() === date.getMonth() &&
-        d.getDate() === date.getDate() &&
-        d.getHours() === slotHour
+        d.getMonth()    === date.getMonth()    &&
+        d.getDate()     === date.getDate()     &&
+        d.getHours()    === slotHour
       )
     })
   }
@@ -94,60 +123,83 @@ export default function Schedule() {
     e.preventDefault()
     setSaving(true)
     try {
-      await api.post('/appointments', {
-        clientId,
-        therapistId,
-        therapyType,
-        scheduledAt: new Date(scheduledAt).toISOString(),
-        durationMin: parseInt(durationMin),
-        notes,
-      })
+      if (editAppt) {
+        await api.patch(`/appointments/${editAppt.id}`, {
+          clientId, therapistId, therapyType,
+          scheduledAt: new Date(scheduledAt).toISOString(),
+          durationMin: parseInt(durationMin),
+          notes, status,
+        })
+      } else {
+        await api.post('/appointments', {
+          clientId, therapistId, therapyType,
+          scheduledAt: new Date(scheduledAt).toISOString(),
+          durationMin: parseInt(durationMin),
+          notes,
+        })
+      }
       setShowForm(false)
-      setClientId('')
-      setTherapistId('')
-      setTherapyType('OT')
-      setScheduledAt('')
-      setDurationMin('50')
-      setNotes('')
       loadData()
     } catch (err: unknown) {
-      alert(errorMessage(err, 'Failed to book appointment'))
-    } finally {
-      setSaving(false)
-    }
+      alert(errorMessage(err, 'Failed to save appointment'))
+    } finally { setSaving(false) }
   }
 
-  const weekDates = getWeekDates()
-  const todayStr = new Date().toDateString()
-  const therapists = staff.filter(member => member.role === 'THERAPIST')
+  async function deleteAppt() {
+    if (!confirmDelete) return
+    setDeleting(true)
+    try {
+      await api.delete(`/appointments/${confirmDelete.id}`)
+      setConfirmDelete(null)
+      setSelectedAppt(null)
+      loadData()
+    } catch (err: unknown) {
+      alert(errorMessage(err, 'Failed to delete appointment'))
+    } finally { setDeleting(false) }
+  }
+
+  const weekDates  = getWeekDates()
+  const todayStr   = new Date().toDateString()
+  const therapists = staff.filter(m => m.role === 'THERAPIST')
+
+  const STATUS_COLORS: Record<string, string> = {
+    SCHEDULED:  '#d97706',
+    CONFIRMED:  '#2563a8',
+    IN_SESSION: '#7c3aed',
+    COMPLETED:  '#1a8c6e',
+    CANCELLED:  '#d63f5c',
+    NO_SHOW:    '#8aab9e',
+  }
 
   return (
     <Layout title="Schedule" action={
-      <button onClick={() => setShowForm(true)} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#1a8c6e', color: 'white', cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>+ Book Session</button>
+      <button onClick={openAdd} style={{ padding:'8px 16px', borderRadius:8, border:'none', background:'#1a8c6e', color:'white', cursor:'pointer', fontSize:13, fontWeight:500 }}>
+        + Book Session
+      </button>
     }>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <div style={{ fontSize: 13, color: '#8aab9e' }}>
-          Week of {weekDates[0].toLocaleDateString('en-KE', { day: 'numeric', month: 'long', year: 'numeric' })}
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+        <div style={{ fontSize:13, color:'#8aab9e' }}>
+          Week of {weekDates[0].toLocaleDateString('en-KE', { day:'numeric', month:'long', year:'numeric' })}
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={() => setWeekOffset(w => w - 1)} style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #d6e8e0', background: 'white', cursor: 'pointer', fontSize: 13 }}>Prev</button>
-          <button onClick={() => setWeekOffset(0)} style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #d6e8e0', background: 'white', cursor: 'pointer', fontSize: 13 }}>Today</button>
-          <button onClick={() => setWeekOffset(w => w + 1)} style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #d6e8e0', background: 'white', cursor: 'pointer', fontSize: 13 }}>Next</button>
+        <div style={{ display:'flex', gap:8 }}>
+          <button onClick={() => setWeekOffset(w => w-1)} style={{ padding:'8px 14px', borderRadius:8, border:'1px solid #d6e8e0', background:'white', cursor:'pointer', fontSize:13 }}>Prev</button>
+          <button onClick={() => setWeekOffset(0)}        style={{ padding:'8px 14px', borderRadius:8, border:'1px solid #d6e8e0', background:'white', cursor:'pointer', fontSize:13 }}>Today</button>
+          <button onClick={() => setWeekOffset(w => w+1)} style={{ padding:'8px 14px', borderRadius:8, border:'1px solid #d6e8e0', background:'white', cursor:'pointer', fontSize:13 }}>Next</button>
         </div>
       </div>
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 60, color: '#8aab9e' }}>Loading schedule...</div>
+        <div style={{ textAlign:'center', padding:60, color:'#8aab9e' }}>Loading schedule...</div>
       ) : (
-        <div style={{ background: 'white', borderRadius: 12, border: '1px solid #d6e8e0', overflow: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+        <div style={{ background:'white', borderRadius:12, border:'1px solid #d6e8e0', overflow:'auto' }}>
+          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
             <thead>
               <tr>
-                <th style={{ width: 60, padding: '10px 12px', borderBottom: '2px solid #d6e8e0', borderRight: '1px solid #d6e8e0', color: '#8aab9e' }}></th>
+                <th style={{ width:60, padding:'10px 12px', borderBottom:'2px solid #d6e8e0', borderRight:'1px solid #d6e8e0', color:'#8aab9e' }}></th>
                 {weekDates.map((date, index) => (
-                  <th key={date.toISOString()} style={{ padding: '10px 12px', borderBottom: '2px solid #d6e8e0', borderRight: '1px solid #eee', textAlign: 'center', fontWeight: 600, color: date.toDateString() === todayStr ? '#1a8c6e' : '#1a2724', background: date.toDateString() === todayStr ? '#e6f4ef' : 'transparent' }}>
-                    <div style={{ fontSize: 13 }}>{DAYS[index]}</div>
-                    <div style={{ fontSize: 11, fontWeight: 400, color: '#8aab9e', marginTop: 2 }}>{date.toLocaleDateString('en-KE', { day: 'numeric', month: 'short' })}</div>
+                  <th key={date.toISOString()} style={{ padding:'10px 12px', borderBottom:'2px solid #d6e8e0', borderRight:'1px solid #eee', textAlign:'center', fontWeight:600, color:date.toDateString()===todayStr?'#1a8c6e':'#1a2724', background:date.toDateString()===todayStr?'#e6f4ef':'transparent' }}>
+                    <div style={{ fontSize:13 }}>{DAYS[index]}</div>
+                    <div style={{ fontSize:11, fontWeight:400, color:'#8aab9e', marginTop:2 }}>{date.toLocaleDateString('en-KE',{ day:'numeric', month:'short' })}</div>
                   </th>
                 ))}
               </tr>
@@ -155,19 +207,24 @@ export default function Schedule() {
             <tbody>
               {HOURS.map(hour => (
                 <tr key={hour}>
-                  <td style={{ padding: '6px 10px', borderBottom: '1px solid #f0f4f2', borderRight: '1px solid #d6e8e0', color: '#8aab9e', fontSize: 11, whiteSpace: 'nowrap', verticalAlign: 'top', fontWeight: 500 }}>
+                  <td style={{ padding:'6px 10px', borderBottom:'1px solid #f0f4f2', borderRight:'1px solid #d6e8e0', color:'#8aab9e', fontSize:11, whiteSpace:'nowrap', verticalAlign:'top', fontWeight:500 }}>
                     {hour}
                   </td>
                   {weekDates.map(date => {
                     const slots = getApptForSlot(date, hour)
                     return (
-                      <td key={`${date.toISOString()}-${hour}`} style={{ padding: 4, borderBottom: '1px solid #f0f4f2', borderRight: '1px solid #f0f4f2', minWidth: 130, verticalAlign: 'top', height: 48 }}>
-                        {slots.map(appointment => {
-                          const color = COLORS[appointment.therapyType] ?? '#8aab9e'
+                      <td key={`${date.toISOString()}-${hour}`} style={{ padding:4, borderBottom:'1px solid #f0f4f2', borderRight:'1px solid #f0f4f2', minWidth:130, verticalAlign:'top', height:48 }}>
+                        {slots.map(appt => {
+                          const color = COLORS[appt.therapyType] ?? '#8aab9e'
                           return (
-                            <div key={appointment.id} style={{ background: color + '22', border: '1px solid ' + color + '66', borderRadius: 6, padding: '4px 7px', marginBottom: 3 }}>
-                              <div style={{ fontWeight: 600, color, fontSize: 11 }}>{appointment.client?.fullName ?? 'Client'}</div>
-                              <div style={{ fontSize: 10, color: '#4a6359' }}>{appointment.therapyType} · {appointment.therapist?.fullName ?? 'Therapist'}</div>
+                            <div
+                              key={appt.id}
+                              onClick={() => setSelectedAppt(selectedAppt?.id === appt.id ? null : appt)}
+                              style={{ background:color+'22', border:'1px solid '+color+'66', borderRadius:6, padding:'4px 7px', marginBottom:3, cursor:'pointer', position:'relative' }}
+                            >
+                              <div style={{ fontWeight:600, color, fontSize:11 }}>{appt.client?.fullName ?? 'Client'}</div>
+                              <div style={{ fontSize:10, color:'#4a6359' }}>{appt.therapyType} · {appt.therapist?.fullName ?? 'Unassigned'}</div>
+                              <div style={{ fontSize:9, marginTop:2, color:STATUS_COLORS[appt.status]??'#8aab9e', fontWeight:600 }}>{appt.status}</div>
                             </div>
                           )
                         })}
@@ -181,32 +238,66 @@ export default function Schedule() {
         </div>
       )}
 
+      {/* Appointment detail popup */}
+      {selectedAppt && (
+        <div style={{ position:'fixed', bottom:24, right:24, background:'white', border:'1px solid #d6e8e0', borderRadius:16, padding:20, width:300, boxShadow:'0 8px 32px rgba(0,0,0,0.12)', zIndex:50 }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+            <div style={{ fontSize:13.5, fontWeight:600, color:'#1a2724' }}>Appointment</div>
+            <button onClick={() => setSelectedAppt(null)} style={{ border:'none', background:'none', fontSize:18, cursor:'pointer', color:'#8aab9e' }}>×</button>
+          </div>
+          <div style={{ fontSize:12.5, color:'#4a6359', lineHeight:1.8 }}>
+            <div><strong style={{ color:'#1a2724' }}>Client:</strong> {selectedAppt.client?.fullName ?? '—'}</div>
+            <div><strong style={{ color:'#1a2724' }}>Type:</strong> {selectedAppt.therapyType}</div>
+            <div><strong style={{ color:'#1a2724' }}>Therapist:</strong> {selectedAppt.therapist?.fullName ?? 'Unassigned'}</div>
+            <div><strong style={{ color:'#1a2724' }}>Time:</strong> {new Date(selectedAppt.scheduledAt).toLocaleString('en-KE',{ weekday:'short', day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })}</div>
+            <div><strong style={{ color:'#1a2724' }}>Duration:</strong> {selectedAppt.durationMin} min</div>
+            <div><strong style={{ color:'#1a2724' }}>Status:</strong> <span style={{ color:STATUS_COLORS[selectedAppt.status]??'#8aab9e', fontWeight:600 }}>{selectedAppt.status}</span></div>
+            {selectedAppt.notes && <div><strong style={{ color:'#1a2724' }}>Notes:</strong> {selectedAppt.notes}</div>}
+          </div>
+          <div style={{ display:'flex', gap:8, marginTop:14 }}>
+            <button
+              onClick={() => openEdit(selectedAppt)}
+              style={{ flex:1, padding:'7px', borderRadius:8, border:'1px solid #d6e8e0', background:'white', fontSize:12.5, cursor:'pointer', color:'#1a8c6e', fontWeight:500 }}
+            >
+              ✏️ Edit
+            </button>
+            <button
+              onClick={() => { setConfirmDelete(selectedAppt); setSelectedAppt(null) }}
+              style={{ flex:1, padding:'7px', borderRadius:8, border:'none', background:'#fde8ed', fontSize:12.5, cursor:'pointer', color:'#d63f5c', fontWeight:500 }}
+            >
+              🗑 Delete
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Add / Edit modal */}
       {showForm && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ background: 'white', borderRadius: 16, padding: 28, width: 500, maxHeight: '90vh', overflowY: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <h2 style={{ fontSize: 16, fontWeight: 600, color: '#1a2724', margin: 0 }}>Book Session</h2>
-              <button onClick={() => setShowForm(false)} style={{ border: 'none', background: 'none', fontSize: 20, cursor: 'pointer', color: '#8aab9e' }}>x</button>
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:100 }}>
+          <div style={{ background:'white', borderRadius:16, padding:28, width:500, maxHeight:'90vh', overflowY:'auto' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
+              <h2 style={{ fontSize:16, fontWeight:600, color:'#1a2724', margin:0 }}>{editAppt ? 'Edit Session' : 'Book Session'}</h2>
+              <button onClick={() => setShowForm(false)} style={{ border:'none', background:'none', fontSize:20, cursor:'pointer', color:'#8aab9e' }}>×</button>
             </div>
             <form onSubmit={handleSubmit}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:12 }}>
                 <div>
-                  <label style={{ fontSize: 12, color: '#4a6359', display: 'block', marginBottom: 4 }}>Client</label>
-                  <select required value={clientId} onChange={e => setClientId(e.target.value)} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #d6e8e0', fontSize: 13, boxSizing: 'border-box' }}>
+                  <label style={{ fontSize:12, color:'#4a6359', display:'block', marginBottom:4 }}>Client</label>
+                  <select required value={clientId} onChange={e => setClientId(e.target.value)} style={{ width:'100%', padding:'8px 12px', borderRadius:8, border:'1px solid #d6e8e0', fontSize:13, boxSizing:'border-box' }}>
                     <option value="">Select client...</option>
-                    {clients.map(client => <option key={client.id} value={client.id}>{client.fullName}</option>)}
+                    {clients.map(c => <option key={c.id} value={c.id}>{c.fullName}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label style={{ fontSize: 12, color: '#4a6359', display: 'block', marginBottom: 4 }}>Therapist</label>
-                  <select required value={therapistId} onChange={e => setTherapistId(e.target.value)} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #d6e8e0', fontSize: 13, boxSizing: 'border-box' }}>
+                  <label style={{ fontSize:12, color:'#4a6359', display:'block', marginBottom:4 }}>Therapist</label>
+                  <select value={therapistId} onChange={e => setTherapistId(e.target.value)} style={{ width:'100%', padding:'8px 12px', borderRadius:8, border:'1px solid #d6e8e0', fontSize:13, boxSizing:'border-box' }}>
                     <option value="">Select therapist...</option>
-                    {therapists.map(member => <option key={member.id} value={member.id}>{member.fullName}</option>)}
+                    {therapists.map(m => <option key={m.id} value={m.id}>{m.fullName}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label style={{ fontSize: 12, color: '#4a6359', display: 'block', marginBottom: 4 }}>Therapy type</label>
-                  <select value={therapyType} onChange={e => setTherapyType(e.target.value)} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #d6e8e0', fontSize: 13, boxSizing: 'border-box' }}>
+                  <label style={{ fontSize:12, color:'#4a6359', display:'block', marginBottom:4 }}>Therapy type</label>
+                  <select value={therapyType} onChange={e => setTherapyType(e.target.value)} style={{ width:'100%', padding:'8px 12px', borderRadius:8, border:'1px solid #d6e8e0', fontSize:13, boxSizing:'border-box' }}>
                     <option value="OT">Occupational Therapy</option>
                     <option value="SPEECH">Speech Therapy</option>
                     <option value="ABA">ABA</option>
@@ -217,23 +308,56 @@ export default function Schedule() {
                   </select>
                 </div>
                 <div>
-                  <label style={{ fontSize: 12, color: '#4a6359', display: 'block', marginBottom: 4 }}>Duration (min)</label>
-                  <input type="number" min="1" value={durationMin} onChange={e => setDurationMin(e.target.value)} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #d6e8e0', fontSize: 13, boxSizing: 'border-box' }} />
+                  <label style={{ fontSize:12, color:'#4a6359', display:'block', marginBottom:4 }}>Duration (min)</label>
+                  <input type="number" min="1" value={durationMin} onChange={e => setDurationMin(e.target.value)} style={{ width:'100%', padding:'8px 12px', borderRadius:8, border:'1px solid #d6e8e0', fontSize:13, boxSizing:'border-box' }} />
                 </div>
               </div>
-              <div style={{ marginBottom: 12 }}>
-                <label style={{ fontSize: 12, color: '#4a6359', display: 'block', marginBottom: 4 }}>Date and time</label>
-                <input required type="datetime-local" value={scheduledAt} onChange={e => setScheduledAt(e.target.value)} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #d6e8e0', fontSize: 13, boxSizing: 'border-box' }} />
+              <div style={{ marginBottom:12 }}>
+                <label style={{ fontSize:12, color:'#4a6359', display:'block', marginBottom:4 }}>Date and time</label>
+                <input required type="datetime-local" value={scheduledAt} onChange={e => setScheduledAt(e.target.value)} style={{ width:'100%', padding:'8px 12px', borderRadius:8, border:'1px solid #d6e8e0', fontSize:13, boxSizing:'border-box' }} />
               </div>
-              <div style={{ marginBottom: 20 }}>
-                <label style={{ fontSize: 12, color: '#4a6359', display: 'block', marginBottom: 4 }}>Notes</label>
-                <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #d6e8e0', fontSize: 13, boxSizing: 'border-box', resize: 'vertical' }} />
+              {editAppt && (
+                <div style={{ marginBottom:12 }}>
+                  <label style={{ fontSize:12, color:'#4a6359', display:'block', marginBottom:4 }}>Status</label>
+                  <select value={status} onChange={e => setStatus(e.target.value)} style={{ width:'100%', padding:'8px 12px', borderRadius:8, border:'1px solid #d6e8e0', fontSize:13, boxSizing:'border-box' }}>
+                    <option value="SCHEDULED">Scheduled</option>
+                    <option value="CONFIRMED">Confirmed</option>
+                    <option value="IN_SESSION">In Session</option>
+                    <option value="COMPLETED">Completed</option>
+                    <option value="CANCELLED">Cancelled</option>
+                    <option value="NO_SHOW">No Show</option>
+                  </select>
+                </div>
+              )}
+              <div style={{ marginBottom:20 }}>
+                <label style={{ fontSize:12, color:'#4a6359', display:'block', marginBottom:4 }}>Notes</label>
+                <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} style={{ width:'100%', padding:'8px 12px', borderRadius:8, border:'1px solid #d6e8e0', fontSize:13, boxSizing:'border-box', resize:'vertical' }} />
               </div>
-              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-                <button type="button" onClick={() => setShowForm(false)} style={{ padding: '9px 16px', borderRadius: 8, border: '1px solid #d6e8e0', background: 'white', fontSize: 13, cursor: 'pointer', color: '#4a6359' }}>Cancel</button>
-                <button type="submit" disabled={saving} style={{ padding: '9px 16px', borderRadius: 8, border: 'none', background: '#1a8c6e', color: 'white', fontSize: 13, fontWeight: 500, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>{saving ? 'Saving...' : 'Book Session'}</button>
+              <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
+                <button type="button" onClick={() => setShowForm(false)} style={{ padding:'9px 16px', borderRadius:8, border:'1px solid #d6e8e0', background:'white', fontSize:13, cursor:'pointer', color:'#4a6359' }}>Cancel</button>
+                <button type="submit" disabled={saving} style={{ padding:'9px 16px', borderRadius:8, border:'none', background:'#1a8c6e', color:'white', fontSize:13, fontWeight:500, cursor:'pointer', opacity:saving?0.7:1 }}>
+                  {saving ? 'Saving...' : editAppt ? 'Save Changes' : 'Book Session'}
+                </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirmation */}
+      {confirmDelete && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200 }}>
+          <div style={{ background:'white', borderRadius:16, padding:28, width:400 }}>
+            <div style={{ fontSize:16, fontWeight:600, color:'#1a2724', marginBottom:10 }}>Delete appointment?</div>
+            <div style={{ fontSize:13, color:'#4a6359', marginBottom:20, lineHeight:1.6 }}>
+              This will permanently delete the <strong>{confirmDelete.therapyType}</strong> session for <strong>{confirmDelete.client?.fullName ?? 'this client'}</strong> on {new Date(confirmDelete.scheduledAt).toLocaleDateString('en-KE',{ weekday:'long', day:'numeric', month:'long' })}. Any session notes will also be deleted.
+            </div>
+            <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
+              <button onClick={() => setConfirmDelete(null)} style={{ padding:'9px 16px', borderRadius:8, border:'1px solid #d6e8e0', background:'white', fontSize:13, cursor:'pointer', color:'#4a6359' }}>Cancel</button>
+              <button onClick={deleteAppt} disabled={deleting} style={{ padding:'9px 16px', borderRadius:8, border:'none', background:'#d63f5c', color:'white', fontSize:13, fontWeight:500, cursor:'pointer', opacity:deleting?0.7:1 }}>
+                {deleting ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
           </div>
         </div>
       )}

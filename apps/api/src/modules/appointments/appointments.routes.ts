@@ -189,4 +189,13 @@ imported++
 
     return reply.send({ imported, placeholders, skipped, errors: errors.slice(0, 20) })
   })
+
+  fastify.delete('/appointments/:id', {
+    preHandler: requireRole('SUPER_ADMIN', 'MANAGER', 'RECEPTIONIST')
+  }, async (request, reply) => {
+    const { id } = request.params as { id: string }
+    await prisma.sessionNote.deleteMany({ where: { appointmentId: id } })
+    await prisma.appointment.delete({ where: { id } })
+    return reply.send({ success: true })
+  })
 }
