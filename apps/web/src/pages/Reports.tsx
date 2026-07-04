@@ -16,6 +16,8 @@ ChartJS.register(
   Title, Tooltip, Legend, Filler
 )
 
+const SESSION_RATE = 300 // KSh per session flat rate
+
 const THERAPY_COLORS: Record<string, string> = {
   OT:      "#3b82f6",
   SPEECH:  "#22c55e",
@@ -262,105 +264,34 @@ export default function Reports() {
             </div>
           </div>
 
-          {/* ── Therapist Workload Chart ── */}
-<div style={{ background:"white", border:"1px solid #d6e8e0", borderRadius:16, overflow:"hidden", marginTop:14 }}>
-  <div style={{ padding:"14px 18px", borderBottom:"1px solid #d6e8e0" }}>
-    <div style={{ fontSize:13.5, fontWeight:600, color:"#1a2724" }}>Therapist Workload</div>
-    <div style={{ fontSize:11.5, color:"#8aab9e", marginTop:2 }}>Sessions per therapist — all time</div>
-  </div>
-  <div style={{ padding:"20px 18px", height:280 }}>
-    {(() => {
-      const workload: Record<string, { name: string; count: number; completed: number }> = {}
-      appointments.forEach((a: any) => {
-        const name = a.therapist?.fullName ?? "Unassigned"
-        if (!workload[name]) workload[name] = { name, count: 0, completed: 0 }
-        workload[name].count++
-        if (a.status === "COMPLETED") workload[name].completed++
-      })
-      const sorted = Object.values(workload).sort((a, b) => b.count - a.count)
-
-      if (sorted.length === 0) return (
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100%", color:"#8aab9e", fontSize:13 }}>
-          No session data yet
-        </div>
-      )
-
-      const workloadBarData = {
-        labels: sorted.map(t => t.name),
-        datasets: [
-          {
-            label: "Total Sessions",
-            data: sorted.map(t => t.count),
-            backgroundColor: "#1a8c6e99",
-            borderColor: "#1a8c6e",
-            borderWidth: 1,
-            borderRadius: 4,
-          },
-          {
-            label: "Completed",
-            data: sorted.map(t => t.completed),
-            backgroundColor: "#2563a899",
-            borderColor: "#2563a8",
-            borderWidth: 1,
-            borderRadius: 4,
-          },
-        ]
-      }
-
-      const workloadOptions = {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { position: "bottom" as const, labels: { font: { size: 11 }, boxWidth: 10, padding: 12 } },
-          tooltip: {
-            callbacks: {
-              afterLabel: (ctx: any) => {
-                const t = sorted[ctx.dataIndex]
-                const rate = t.count > 0 ? Math.round((t.completed / t.count) * 100) : 0
-                return `Completion rate: ${rate}%`
-              }
-            }
-          }
-        },
-        scales: {
-          x: { grid: { display: false } },
-          y: { grid: { color: "#d6e8e040" }, ticks: { precision: 0 } },
-        },
-      }
-
-      return <Bar data={workloadBarData} options={workloadOptions} />
-    })()}
-  </div>
-</div>
-
           {/* ── Generate Reports panel ── */}
           <div style={{ background: "white", border: "1px solid #d6e8e0", borderRadius: 16, overflow: "hidden", marginBottom: 14 }}>
-          <div style={{ padding: "14px 18px", borderBottom: "1px solid #d6e8e0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div>
-          <div style={{ fontSize: 13.5, fontWeight: 600, color: "#1a2724" }}>Generate Reports</div>
-          <div style={{ fontSize: 11.5, color: "#8aab9e", marginTop: 2 }}>Download PDF reports for records and sharing</div>
+            <div style={{ padding: "14px 18px", borderBottom: "1px solid #d6e8e0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+              <div style={{ fontSize: 13.5, fontWeight: 600, color: "#1a2724" }}>Generate Reports</div>
+              <div style={{ fontSize: 11.5, color: "#8aab9e", marginTop: 2 }}>Download PDF reports for records and sharing</div>
+            </div>
+          </div>
+          <div style={{ padding: "0 18px" }}>
+            {[
+              { label: "Monthly Progress Report",  desc: "Client goals and session progress",   onClick: () => generateFinancialReportPDF(invoices, new Date().toLocaleDateString("en-KE", { month: "long", year: "numeric" })) },
+              { label: "Financial Summary",        desc: "All invoices and payment status",      onClick: () => generateFinancialReportPDF(invoices, "All time") },
+              { label: "Attendance Report",        desc: "Sessions completed vs scheduled",      onClick: () => generateAttendanceReportPDF(appointments, clients) },
+              { label: "Therapist Productivity",   desc: "Sessions per therapist this month",    onClick: () => generateAttendanceReportPDF(appointments, clients) },
+              { label: "Parent Engagement Report", desc: "Portal access and payment history",    onClick: () => generateFinancialReportPDF(invoices, "Parent engagement") },
+            ].map((r, i, arr) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 0", borderBottom: i < arr.length - 1 ? "1px solid #f0f4f2" : "none" }}>
+            <div>
+            <div style={{ fontSize: 13, fontWeight: 500, color: "#1a2724" }}>{r.label}</div>
+            <div style={{ fontSize: 11.5, color: "#8aab9e", marginTop: 2 }}>{r.desc}</div>
+          </div>
+          <button
+            onClick={r.onClick}
+            style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid #d6e8e0", background: "white", fontSize: 12.5, cursor: "pointer", color: "#1a8c6e", fontWeight: 500, display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}
+          >
+            ⬇ PDF
+          </button>
         </div>
-        </div>
-  <div style={{ padding: "0 18px" }}>
-    {[
-      { label: "Monthly Progress Report",  desc: "Client goals and session progress",   onClick: () => generateFinancialReportPDF(invoices, new Date().toLocaleDateString("en-KE", { month: "long", year: "numeric" })) },
-      { label: "Financial Summary",        desc: "All invoices and payment status",      onClick: () => generateFinancialReportPDF(invoices, "All time") },
-      { label: "Attendance Report",        desc: "Sessions completed vs scheduled",      onClick: () => generateAttendanceReportPDF(appointments, clients) },
-      { label: "Therapist Productivity",   desc: "Sessions per therapist this month",    onClick: () => generateAttendanceReportPDF(appointments, clients) },
-      { label: "Parent Engagement Report", desc: "Portal access and payment history",    onClick: () => generateFinancialReportPDF(invoices, "Parent engagement") },
-    ].map((r, i, arr) => (
-      <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 0", borderBottom: i < arr.length - 1 ? "1px solid #f0f4f2" : "none" }}>
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 500, color: "#1a2724" }}>{r.label}</div>
-          <div style={{ fontSize: 11.5, color: "#8aab9e", marginTop: 2 }}>{r.desc}</div>
-        </div>
-        <button
-          onClick={r.onClick}
-          style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid #d6e8e0", background: "white", fontSize: 12.5, cursor: "pointer", color: "#1a8c6e", fontWeight: 500, display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}
-        >
-          ⬇ PDF
-        </button>
-      </div>
     ))}
   </div>
 </div>
@@ -406,6 +337,159 @@ export default function Reports() {
               </div>
             ))}
           </div>
+      {/* ── Therapist Workload Chart ── */}
+          <div style={{ background:"white", border:"1px solid #d6e8e0", borderRadius:16, overflow:"hidden", marginTop:14 }}>
+            <div style={{ padding:"14px 18px", borderBottom:"1px solid #d6e8e0" }}>
+              <div style={{ fontSize:13.5, fontWeight:600, color:"#1a2724" }}>Therapist Workload</div>
+              <div style={{ fontSize:11.5, color:"#8aab9e", marginTop:2 }}>Sessions per therapist — all time</div>
+            </div>
+            <div style={{ padding:"20px 18px", height:280 }}>
+              {(() => {
+                const workload: Record<string, { name: string; count: number; completed: number }> = {}
+                appointments.forEach((a: any) => {
+                  const name = a.therapist?.fullName ?? "Unassigned"
+                  if (!workload[name]) workload[name] = { name, count: 0, completed: 0 }
+                  workload[name].count++
+                  if (a.status === "COMPLETED") workload[name].completed++
+                })
+                const sorted = Object.values(workload).sort((a, b) => b.count - a.count)
+
+                if (sorted.length === 0) return (
+                  <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100%", color:"#8aab9e", fontSize:13 }}>
+                    No session data yet
+                  </div>
+                )
+
+                const workloadBarData = {
+                  labels: sorted.map(t => t.name),
+                  datasets: [
+                    {
+                      label: "Total Sessions",
+                      data: sorted.map(t => t.count),
+                      backgroundColor: "#1a8c6e99",
+                      borderColor: "#1a8c6e",
+                      borderWidth: 1,
+                      borderRadius: 4,
+                    },
+                    {
+                      label: "Completed",
+                      data: sorted.map(t => t.completed),
+                      backgroundColor: "#2563a899",
+                      borderColor: "#2563a8",
+                      borderWidth: 1,
+                      borderRadius: 4,
+                    },
+                  ]
+                }
+
+                const workloadOptions = {
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: { position: "bottom" as const, labels: { font: { size: 11 }, boxWidth: 10, padding: 12 } },
+                    tooltip: {
+                      callbacks: {
+                        afterLabel: (ctx: any) => {
+                          const t = sorted[ctx.dataIndex]
+                          const rate = t.count > 0 ? Math.round((t.completed / t.count) * 100) : 0
+                          return `Completion rate: ${rate}%`
+                        }
+                      }
+                    }
+                  },
+                  scales: {
+                    x: { grid: { display: false } },
+                    y: { grid: { color: "#d6e8e040" }, ticks: { precision: 0 } },
+                  },
+                }
+
+                return <Bar data={workloadBarData} options={workloadOptions} />
+              })()}
+            </div>
+          </div>
+
+          {/* ── Pro Bono Report ── */}
+          {(() => {
+            const proBonoClients   = clients.filter((c: any) => c.isProBono)
+            const proBonoClientIds = new Set(proBonoClients.map((c: any) => c.id))
+            const proBonoSessions  = appointments.filter((a: any) => proBonoClientIds.has(a.clientId ?? a.client?.id))
+            const completedPBSessions = proBonoSessions.filter((a: any) => a.status === "COMPLETED")
+            const valueWaived      = completedPBSessions.length * SESSION_RATE
+
+            if (proBonoClients.length === 0) return null
+
+            const pbByClient: Record<string, { name: string; sessions: number; completed: number; value: number }> = {}
+            proBonoClients.forEach((c: any) => {
+              pbByClient[c.id] = { name: c.fullName, sessions: 0, completed: 0, value: 0 }
+            })
+            proBonoSessions.forEach((a: any) => {
+              const cid = a.clientId ?? a.client?.id
+              if (pbByClient[cid]) {
+                pbByClient[cid].sessions++
+                if (a.status === "COMPLETED") {
+                  pbByClient[cid].completed++
+                  pbByClient[cid].value += SESSION_RATE
+                }
+              }
+            })
+            const pbList = Object.values(pbByClient).sort((a, b) => b.sessions - a.sessions)
+
+            return (
+              <div style={{ background:"white", border:"1px solid #d6e8e0", borderRadius:16, overflow:"hidden", marginTop:14 }}>
+                <div style={{ padding:"14px 18px", borderBottom:"1px solid #d6e8e0", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                  <div>
+                    <div style={{ fontSize:13.5, fontWeight:600, color:"#1a2724" }}>Pro Bono Services</div>
+                    <div style={{ fontSize:11.5, color:"#8aab9e", marginTop:2 }}>Community support — subsidised clients</div>
+                  </div>
+                  <span style={{ fontSize:11, padding:"3px 10px", borderRadius:20, background:"#fef3c7", color:"#d97706", fontWeight:600 }}>
+                    {proBonoClients.length} pro bono {proBonoClients.length === 1 ? "client" : "clients"}
+                  </span>
+                </div>
+
+                {/* Summary cards */}
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:0, borderBottom:"1px solid #d6e8e0" }}>
+                  {[
+                    { label:"Pro Bono Clients",    value: proBonoClients.length,        color:"#d97706",  sub:"receiving support" },
+                    { label:"Total Sessions",       value: proBonoSessions.length,       color:"#2563a8",  sub:"booked all time" },
+                    { label:"Completed Sessions",   value: completedPBSessions.length,   color:"#1a8c6e",  sub:"successfully delivered" },
+                    { label:"Value Waived",         value: "KSh "+valueWaived.toLocaleString(), color:"#d63f5c", sub:"at KSh 300/session" },
+                  ].map((s, i) => (
+                    <div key={i} style={{ padding:"16px 18px", borderRight: i < 3 ? "1px solid #d6e8e0" : "none" }}>
+                      <div style={{ fontSize:10.5, fontWeight:600, color:"#8aab9e", textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:6 }}>{s.label}</div>
+                      <div style={{ fontSize:22, fontWeight:600, color:s.color, lineHeight:1, marginBottom:4 }}>{s.value}</div>
+                      <div style={{ fontSize:11, color:"#8aab9e" }}>{s.sub}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Per-client breakdown */}
+                <div style={{ padding:"0 18px" }}>
+                  <div style={{ padding:"10px 0 6px", fontSize:11, fontWeight:600, color:"#8aab9e", textTransform:"uppercase" }}>
+                    Breakdown by client
+                  </div>
+                  {pbList.map((pb, i) => (
+                    <div key={i} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 0", borderBottom: i < pbList.length-1 ? "1px solid #f0f4f2" : "none" }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                        <div style={{ width:30, height:30, borderRadius:"50%", background:"#fef3c7", display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:700, color:"#d97706", flexShrink:0 }}>
+                          {pb.name.charAt(0)}
+                        </div>
+                        <div>
+                          <div style={{ fontSize:13, fontWeight:500, color:"#1a2724" }}>{pb.name}</div>
+                          <div style={{ fontSize:11.5, color:"#8aab9e", marginTop:1 }}>
+                            {pb.sessions} sessions · {pb.completed} completed
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ textAlign:"right" }}>
+                        <div style={{ fontSize:13, fontWeight:600, color:"#d63f5c" }}>KSh {pb.value.toLocaleString()}</div>
+                        <div style={{ fontSize:11, color:"#8aab9e" }}>value waived</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+          })()}
         </>
       )}
     </Layout>
