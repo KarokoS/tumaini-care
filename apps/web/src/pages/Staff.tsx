@@ -3,14 +3,14 @@ import api from "../lib/api"
 import Layout from "../components/Layout"
 
 export default function Staff() {
-  const [staff, setStaff]                       = useState<any[]>([])
-  const [loading, setLoading]                   = useState(true)
-  const [showForm, setShowForm]                 = useState(false)
-  const [saving, setSaving]                     = useState(false)
-  const [filter, setFilter]                     = useState("ALL")
-  const [openMenuId, setOpenMenuId]             = useState<string | null>(null)
+  const [staff, setStaff]                           = useState<any[]>([])
+  const [loading, setLoading]                       = useState(true)
+  const [showForm, setShowForm]                     = useState(false)
+  const [saving, setSaving]                         = useState(false)
+  const [filter, setFilter]                         = useState("ALL")
+  const [openMenuId, setOpenMenuId]                 = useState<string | null>(null)
   const [confirmDeleteStaff, setConfirmDeleteStaff] = useState<any>(null)
-  const [deletingStaff, setDeletingStaff]       = useState(false)
+  const [deletingStaff, setDeletingStaff]           = useState(false)
 
   const [fullName, setFullName]       = useState("")
   const [email, setEmail]             = useState("")
@@ -22,6 +22,16 @@ export default function Staff() {
   const [institution, setInstitution] = useState("")
 
   useEffect(() => { loadData() }, [])
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      const target = e.target as HTMLElement
+      if (!target.closest("[data-menu]")) setOpenMenuId(null)
+    }
+    if (openMenuId) document.addEventListener("click", handleClickOutside)
+    return () => document.removeEventListener("click", handleClickOutside)
+  }, [openMenuId])
 
   function loadData() {
     api.get("/staff").catch(() => ({ data: [] }))
@@ -88,12 +98,14 @@ export default function Staff() {
   }
 
   const filtered = staff.filter(m => {
-    if (filter === "ALL")     return true
-    if (filter === "TRAINEE") return m.isTrainee
-    if (filter === "ACTIVE")  return m.isActive
+    if (filter === "ALL")      return true
+    if (filter === "TRAINEE")  return m.isTrainee
+    if (filter === "ACTIVE")   return m.isActive
     if (filter === "INACTIVE") return !m.isActive
     return true
   })
+
+  const selectedMember = openMenuId ? filtered.find(m => m.id === openMenuId) : null
 
   return (
     <Layout title="Staff" action={
@@ -105,10 +117,10 @@ export default function Staff() {
       {/* Summary cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 20 }}>
         {[
-          { label: "Total Staff",           value: staff.length,                                          color: "#1a8c6e" },
+          { label: "Total Staff",           value: staff.length,                                                   color: "#1a8c6e" },
           { label: "Therapists",            value: staff.filter(s => s.role === "THERAPIST" && !s.isTrainee).length, color: "#2563a8" },
-          { label: "Volunteers / Students", value: staff.filter(s => s.isTrainee).length,                color: "#d97706" },
-          { label: "Active",                value: staff.filter(s => s.isActive).length,                 color: "#7c3aed" },
+          { label: "Volunteers / Students", value: staff.filter(s => s.isTrainee).length,                         color: "#d97706" },
+          { label: "Active",                value: staff.filter(s => s.isActive).length,                          color: "#7c3aed" },
         ].map((s, i) => (
           <div key={i} style={{ background: "white", border: "1px solid #d6e8e0", borderRadius: 12, padding: "14px 18px" }}>
             <div style={{ fontSize: 11, fontWeight: 600, color: "#8aab9e", textTransform: "uppercase", marginBottom: 6 }}>{s.label}</div>
@@ -120,23 +132,20 @@ export default function Staff() {
       {/* Filter tabs */}
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         {[["ALL","All staff"],["ACTIVE","Active"],["INACTIVE","Inactive"],["TRAINEE","Volunteers / Students"]].map(([val, label]) => (
-          <button
-            key={val}
-            onClick={() => setFilter(val)}
-            style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid", borderColor: filter === val ? "#1a8c6e" : "#d6e8e0", background: filter === val ? "#e6f4ef" : "white", color: filter === val ? "#1a8c6e" : "#4a6359", fontSize: 12.5, fontWeight: 500, cursor: "pointer" }}
-          >
+          <button key={val} onClick={() => setFilter(val)}
+            style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid", borderColor: filter === val ? "#1a8c6e" : "#d6e8e0", background: filter === val ? "#e6f4ef" : "white", color: filter === val ? "#1a8c6e" : "#4a6359", fontSize: 12.5, fontWeight: 500, cursor: "pointer" }}>
             {label}
           </button>
         ))}
       </div>
 
-      {/* Staff table */}
-      <div style={{ background: "white", borderRadius: 14, border: "1px solid #d6e8e0", overflow: "hidden" }}>
+      {/* Staff table — overflow visible so dropdown isn't clipped */}
+      <div style={{ background: "white", borderRadius: 14, border: "1px solid #d6e8e0", overflow: "visible" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
             <tr style={{ background: "#f8faf9", borderBottom: "1px solid #d6e8e0" }}>
               {["Staff Member", "Role", "Specialty", "Contact", "Status", ""].map((h, i) => (
-                <th key={i} style={{ padding: "10px 16px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "#8aab9e", textTransform: "uppercase" }}>{h}</th>
+                <th key={i} style={{ padding: "10px 16px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "#8aab9e", textTransform: "uppercase", borderRadius: i === 0 ? "14px 0 0 0" : i === 5 ? "0 14px 0 0" : 0 }}>{h}</th>
               ))}
             </tr>
           </thead>
@@ -179,35 +188,53 @@ export default function Staff() {
                     {member.isActive ? "Active" : "Inactive"}
                   </span>
                 </td>
-                <td style={{ padding: "12px 16px", textAlign: "right", position: "relative" }}>
+                <td style={{ padding: "12px 16px", textAlign: "right", position: "relative" }} data-menu="true">
                   <button
-                    onClick={() => setOpenMenuId(openMenuId === member.id ? null : member.id)}
-                    style={{ border: "none", background: "none", cursor: "pointer", color: "#8aab9e", fontSize: 16, padding: "2px 6px" }}
+                    data-menu="true"
+                    onClick={e => { e.stopPropagation(); setOpenMenuId(openMenuId === member.id ? null : member.id) }}
+                    style={{ border: "none", background: openMenuId === member.id ? "#f0f4f2" : "none", cursor: "pointer", color: "#8aab9e", fontSize: 18, padding: "4px 8px", borderRadius: 6 }}
                   >
                     ⋮
                   </button>
-                  {openMenuId === member.id && (
-                    <div style={{ position: "absolute", right: 16, top: "100%", marginTop: 4, background: "white", border: "1px solid #d6e8e0", borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.1)", zIndex: 10, minWidth: 180, textAlign: "left" }}>
-                      <button
-                        onClick={() => toggleActive(member)}
-                        style={{ display: "block", width: "100%", padding: "8px 14px", border: "none", background: "none", textAlign: "left", fontSize: 12.5, color: "#4a6359", cursor: "pointer" }}
-                      >
-                        {member.isActive ? "Mark as Inactive" : "✓ Mark as Active"}
-                      </button>
-                      <button
-                        onClick={() => { setConfirmDeleteStaff(member); setOpenMenuId(null) }}
-                        style={{ display: "block", width: "100%", padding: "8px 14px", border: "none", background: "none", textAlign: "left", fontSize: 12.5, color: "#d63f5c", cursor: "pointer", borderTop: "1px solid #f0f4f2" }}
-                      >
-                        Delete Staff Member
-                      </button>
-                    </div>
-                  )}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {/* Floating dropdown — rendered outside table so it's never clipped */}
+      {selectedMember && (
+        <div
+          data-menu="true"
+          style={{ position: "fixed", top: "50%", right: 32, transform: "translateY(-50%)", background: "white", border: "1px solid #d6e8e0", borderRadius: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 999, minWidth: 220, overflow: "hidden" }}
+        >
+          <div style={{ padding: "12px 16px", borderBottom: "1px solid #f0f4f2", background: "#f8faf9" }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "#1a2724" }}>{selectedMember.fullName}</div>
+            <div style={{ fontSize: 11.5, color: "#8aab9e", marginTop: 2 }}>{roleLabel[selectedMember.role] || selectedMember.role}</div>
+          </div>
+          <button
+            onClick={() => toggleActive(selectedMember)}
+            style={{ display: "block", width: "100%", padding: "12px 16px", border: "none", background: "none", textAlign: "left", fontSize: 13, color: "#4a6359", cursor: "pointer" }}
+          >
+            {selectedMember.isActive ? "⏸ Mark as Inactive" : "✓ Mark as Active"}
+          </button>
+          <div style={{ height: 1, background: "#f0f4f2" }} />
+          <button
+            onClick={() => { setConfirmDeleteStaff(selectedMember); setOpenMenuId(null) }}
+            style={{ display: "block", width: "100%", padding: "12px 16px", border: "none", background: "none", textAlign: "left", fontSize: 13, color: "#d63f5c", cursor: "pointer" }}
+          >
+            🗑 Delete Staff Member
+          </button>
+          <div style={{ height: 1, background: "#f0f4f2" }} />
+          <button
+            onClick={() => setOpenMenuId(null)}
+            style={{ display: "block", width: "100%", padding: "10px 16px", border: "none", background: "#f8faf9", textAlign: "center", fontSize: 12, color: "#8aab9e", cursor: "pointer" }}
+          >
+            Cancel
+          </button>
+        </div>
+      )}
 
       {/* Add Staff modal */}
       {showForm && (
@@ -258,7 +285,6 @@ export default function Staff() {
                   <input required type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Min 8 characters" style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #d6e8e0", fontSize: 13, boxSizing: "border-box" }} />
                 </div>
               </div>
-
               <div style={{ background: "#f8faf9", borderRadius: 10, padding: "12px 14px", marginBottom: 16 }}>
                 <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#1a2724", cursor: "pointer", marginBottom: isTrainee ? 10 : 0 }}>
                   <input type="checkbox" checked={isTrainee} onChange={e => setIsTrainee(e.target.checked)} />
@@ -271,7 +297,6 @@ export default function Staff() {
                   </div>
                 )}
               </div>
-
               <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8 }}>
                 <button type="button" onClick={() => setShowForm(false)} style={{ padding: "9px 16px", borderRadius: 8, border: "1px solid #d6e8e0", background: "white", fontSize: 13, cursor: "pointer", color: "#4a6359" }}>Cancel</button>
                 <button type="submit" disabled={saving} style={{ padding: "9px 16px", borderRadius: 8, border: "none", background: "#1a8c6e", color: "white", fontSize: 13, fontWeight: 500, cursor: "pointer", opacity: saving ? 0.7 : 1 }}>{saving ? "Saving..." : "Add Staff"}</button>
@@ -281,7 +306,7 @@ export default function Staff() {
         </div>
       )}
 
-      {/* Delete confirmation modal */}
+      {/* Delete confirmation */}
       {confirmDeleteStaff && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200 }}>
           <div style={{ background: "white", borderRadius: 16, padding: 28, width: 420 }}>
