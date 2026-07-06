@@ -4,6 +4,7 @@ import { useAuthStore } from './stores/auth.store'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Clients from './pages/Clients'
+import ClientDetail from './pages/ClientDetail'
 import Schedule from './pages/Schedule'
 import Sessions from './pages/Sessions'
 import Plans from './pages/Plans'
@@ -12,49 +13,109 @@ import Staff from './pages/Staff'
 import Reports from './pages/Reports'
 import Assessments from './pages/Assessments'
 import Inventory from './pages/Inventory'
-import ParentPortal from './pages/ParentPortal'
 import ImportClients from './pages/ImportClients'
 import ImportAttendance from './pages/ImportAttendance'
-import ClientDetail from './pages/ClientDetail'
+import ParentPortal from './pages/ParentPortal'
 import ChangePassword from './pages/ChangePassword'
 import ResetPassword from './pages/ResetPassword'
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuthStore()
+function ProtectedRoute({ children, roles }: { children: React.ReactNode; roles?: string[] }) {
+  const { isAuthenticated, user } = useAuthStore()
   const token = localStorage.getItem('accessToken')
+
   if (!isAuthenticated && !token) return <Navigate to="/login" replace />
+
+  if (roles && user?.role && !roles.includes(user.role)) {
+    return <Navigate to="/dashboard" replace />
+  }
+
   return <>{children}</>
 }
+
+const ADMIN    = ["SUPER_ADMIN", "MANAGER"]
+const CLINICAL = ["SUPER_ADMIN", "MANAGER", "THERAPIST"]
+const FINANCE  = ["SUPER_ADMIN", "MANAGER", "FINANCE"]
+const FRONT    = ["SUPER_ADMIN", "MANAGER", "RECEPTIONIST"]
+const ALL_STAFF = ["SUPER_ADMIN", "MANAGER", "THERAPIST", "RECEPTIONIST", "FINANCE"]
 
 export default function App() {
   const initialize = useAuthStore((s) => s.initialize)
 
-  useEffect(() => {
-    initialize()
-  }, [initialize])
+  useEffect(() => { initialize() }, [initialize])
 
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-        <Route path="/clients" element={<ProtectedRoute><Clients /></ProtectedRoute>} />
-        <Route path="/schedule" element={<ProtectedRoute><Schedule /></ProtectedRoute>} />
-        <Route path="/sessions" element={<ProtectedRoute><Sessions /></ProtectedRoute>} />
-        <Route path="/plans" element={<ProtectedRoute><Plans /></ProtectedRoute>} />
-        <Route path="/billing" element={<ProtectedRoute><Billing /></ProtectedRoute>} />
-        <Route path="/staff" element={<ProtectedRoute><Staff /></ProtectedRoute>} />
-        <Route path="/assessments" element={<ProtectedRoute><Assessments /></ProtectedRoute>} />
-        <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
-        <Route path="/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
-        <Route path="/parent" element={<ParentPortal />} />
-        <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
-        <Route path="/clients/import" element={<ProtectedRoute><ImportClients /></ProtectedRoute>} />
-        <Route path="/attendance/import" element={<ProtectedRoute><ImportAttendance /></ProtectedRoute>} />
-        <Route path="/clients/:id" element={<ProtectedRoute><ClientDetail /></ProtectedRoute>} />
+        {/* Public routes */}
+        <Route path="/login"          element={<Login />} />
         <Route path="/reset-password" element={<ResetPassword />} />
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/change-password" element={<ChangePassword />} />
+        <Route path="/parent"         element={<ParentPortal />} />
+
+        {/* Dashboard — all staff */}
+        <Route path="/dashboard" element={
+          <ProtectedRoute roles={ALL_STAFF}><Dashboard /></ProtectedRoute>
+        } />
+
+        {/* Clients — all staff except Finance */}
+        <Route path="/clients" element={
+          <ProtectedRoute roles={[...CLINICAL, "RECEPTIONIST"]}><Clients /></ProtectedRoute>
+        } />
+        <Route path="/clients/:id" element={
+          <ProtectedRoute roles={[...CLINICAL, "RECEPTIONIST"]}><ClientDetail /></ProtectedRoute>
+        } />
+        <Route path="/clients/import" element={
+          <ProtectedRoute roles={ADMIN}><ImportClients /></ProtectedRoute>
+        } />
+
+        {/* Schedule — all except Finance */}
+        <Route path="/schedule" element={
+          <ProtectedRoute roles={[...CLINICAL, "RECEPTIONIST"]}><Schedule /></ProtectedRoute>
+        } />
+
+        {/* Sessions — clinical only */}
+        <Route path="/sessions" element={
+          <ProtectedRoute roles={CLINICAL}><Sessions /></ProtectedRoute>
+        } />
+
+        {/* Therapy Plans — clinical only */}
+        <Route path="/plans" element={
+          <ProtectedRoute roles={CLINICAL}><Plans /></ProtectedRoute>
+        } />
+
+        {/* Assessments — clinical only */}
+        <Route path="/assessments" element={
+          <ProtectedRoute roles={CLINICAL}><Assessments /></ProtectedRoute>
+        } />
+
+        {/* Reports — admin and finance */}
+        <Route path="/reports" element={
+          <ProtectedRoute roles={[...ADMIN, "FINANCE"]}><Reports /></ProtectedRoute>
+        } />
+
+        {/* Billing — admin, finance, receptionist */}
+        <Route path="/billing" element={
+          <ProtectedRoute roles={[...FINANCE, "RECEPTIONIST"]}><Billing /></ProtectedRoute>
+        } />
+
+        {/* Staff — admin only */}
+        <Route path="/staff" element={
+          <ProtectedRoute roles={ADMIN}><Staff /></ProtectedRoute>
+        } />
+
+        {/* Inventory — all staff */}
+        <Route path="/inventory" element={
+          <ProtectedRoute roles={ALL_STAFF}><Inventory /></ProtectedRoute>
+        } />
+
+        {/* Import Attendance — admin only */}
+        <Route path="/attendance/import" element={
+          <ProtectedRoute roles={ADMIN}><ImportAttendance /></ProtectedRoute>
+        } />
+
+        {/* Redirects */}
+        <Route path="/"  element={<Navigate to="/dashboard" replace />} />
+        <Route path="*"  element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </BrowserRouter>
   )
