@@ -1,39 +1,33 @@
 import { useEffect, useState } from 'react'
 import Layout from "../components/Layout"
 import api from '../lib/api'
+import { useAuthStore } from '../stores/auth.store'
 
-const HOURS = ['8:00', '9:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00']
-const DAYS  = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
-const COLORS: Record<string, string> = {
-  OT:      '#3b82f6',
-  SPEECH:  '#22c55e',
-  ABA:     '#a855f7',
-  SENSORY: '#f97316',
-  GROUP:   '#eab308',
-  PSYCH:   '#ec4899',
-  PHYSIO:  '#0891b2',
+const HOURS = ['8:00','9:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00']
+const DAYS  = ['Monday','Tuesday','Wednesday','Thursday','Friday']
+const COLORS: Record<string,string> = {
+  OT:'#3b82f6', SPEECH:'#22c55e', ABA:'#a855f7',
+  SENSORY:'#f97316', GROUP:'#eab308', PSYCH:'#ec4899', PHYSIO:'#0891b2',
 }
 
 type Client      = { id: string; fullName: string }
 type StaffMember = { id: string; fullName: string; role: string }
 type Appointment = {
-  id:          string
-  scheduledAt: string
-  therapyType: string
-  status:      string
-  durationMin: number
-  notes:       string
-  client?:     Client | null
-  therapist?:  { id: string; fullName: string } | null
+  id: string; scheduledAt: string; therapyType: string; status: string
+  durationMin: number; notes: string
+  client?: Client | null
+  therapist?: { id: string; fullName: string } | null
 }
-type ApiList<T> = { data: T[] }
 
 function errorMessage(err: unknown, fallback: string) {
-  const response = (err as { response?: { data?: { message?: string; error?: string } } }).response
-  return response?.data?.message ?? response?.data?.error ?? fallback
+  const r = (err as any)?.response?.data
+  return r?.message ?? r?.error ?? fallback
 }
 
 export default function Schedule() {
+  const { user }   = useAuthStore()
+  const isReadOnly = user?.role === "THERAPIST"
+
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [clients, setClients]           = useState<Client[]>([])
   const [staff, setStaff]               = useState<StaffMember[]>([])
@@ -59,10 +53,10 @@ export default function Schedule() {
   function loadData() {
     setLoading(true)
     Promise.all([
-      api.get<Appointment[]>('/appointments').catch((): ApiList<Appointment> => ({ data: [] })),
-      api.get<Client[]>('/clients').catch(():     ApiList<Client>      => ({ data: [] })),
-      api.get<StaffMember[]>('/staff').catch(():  ApiList<StaffMember> => ({ data: [] })),
-    ]).then(([a, c, s]) => {
+      api.get('/appointments').catch(() => ({ data: [] })),
+      api.get('/clients').catch(() => ({ data: [] })),
+      api.get('/staff').catch(() => ({ data: [] })),
+    ]).then(([a, c, s]: any) => {
       setAppointments(a.data)
       setClients(c.data)
       setStaff(s.data)
@@ -81,9 +75,8 @@ export default function Schedule() {
     setClientId(appt.client?.id ?? '')
     setTherapistId(appt.therapist?.id ?? '')
     setTherapyType(appt.therapyType)
-    const d = new Date(appt.scheduledAt)
-    const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000)
-      .toISOString().slice(0, 16)
+    const d     = new Date(appt.scheduledAt)
+    const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0,16)
     setScheduledAt(local)
     setDurationMin(String(appt.durationMin))
     setNotes(appt.notes ?? '')
@@ -98,7 +91,7 @@ export default function Schedule() {
     const monday = new Date(now)
     const diff   = day === 0 ? 6 : day - 1
     monday.setDate(now.getDate() - diff + weekOffset * 7)
-    monday.setHours(0, 0, 0, 0)
+    monday.setHours(0,0,0,0)
     return DAYS.map((_, i) => {
       const d = new Date(monday)
       d.setDate(monday.getDate() + i)
@@ -120,29 +113,24 @@ export default function Schedule() {
   }
 
   async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setSaving(true)
+    e.preventDefault(); setSaving(true)
     try {
       if (editAppt) {
         await api.patch(`/appointments/${editAppt.id}`, {
           clientId, therapistId, therapyType,
           scheduledAt: new Date(scheduledAt).toISOString(),
-          durationMin: parseInt(durationMin),
-          notes, status,
+          durationMin: parseInt(durationMin), notes, status,
         })
       } else {
         await api.post('/appointments', {
           clientId, therapistId, therapyType,
           scheduledAt: new Date(scheduledAt).toISOString(),
-          durationMin: parseInt(durationMin),
-          notes,
+          durationMin: parseInt(durationMin), notes,
         })
       }
-      setShowForm(false)
-      loadData()
-    } catch (err: unknown) {
-      alert(errorMessage(err, 'Failed to save appointment'))
-    } finally { setSaving(false) }
+      setShowForm(false); loadData()
+    } catch (err) { alert(errorMessage(err, 'Failed to save appointment')) }
+    finally { setSaving(false) }
   }
 
   async function deleteAppt() {
@@ -150,43 +138,48 @@ export default function Schedule() {
     setDeleting(true)
     try {
       await api.delete(`/appointments/${confirmDelete.id}`)
-      setConfirmDelete(null)
-      setSelectedAppt(null)
-      loadData()
-    } catch (err: unknown) {
-      alert(errorMessage(err, 'Failed to delete appointment'))
-    } finally { setDeleting(false) }
+      setConfirmDelete(null); setSelectedAppt(null); loadData()
+    } catch (err) { alert(errorMessage(err, 'Failed to delete appointment')) }
+    finally { setDeleting(false) }
   }
 
   const weekDates  = getWeekDates()
   const todayStr   = new Date().toDateString()
   const therapists = staff.filter(m => m.role === 'THERAPIST')
 
-  const STATUS_COLORS: Record<string, string> = {
-    SCHEDULED:  '#d97706',
-    CONFIRMED:  '#2563a8',
-    IN_SESSION: '#7c3aed',
-    COMPLETED:  '#1a8c6e',
-    CANCELLED:  '#d63f5c',
-    NO_SHOW:    '#8aab9e',
+  const STATUS_COLORS: Record<string,string> = {
+    SCHEDULED:'#d97706', CONFIRMED:'#2563a8', IN_SESSION:'#7c3aed',
+    COMPLETED:'#1a8c6e', CANCELLED:'#d63f5c', NO_SHOW:'#8aab9e',
   }
+
+  const inp = { width:"100%", padding:"8px 12px", borderRadius:8, border:"1px solid #d6e8e0", fontSize:13, boxSizing:"border-box" as const }
+  const lbl = { fontSize:12, color:"#4a6359", display:"block" as const, marginBottom:4 }
 
   return (
     <Layout title="Schedule" action={
-      <button onClick={openAdd} style={{ padding:'8px 16px', borderRadius:8, border:'none', background:'#1a8c6e', color:'white', cursor:'pointer', fontSize:13, fontWeight:500 }}>
-        + Book Session
-      </button>
+      !isReadOnly ? (
+        <button onClick={openAdd} style={{ padding:'8px 16px', borderRadius:8, border:'none', background:'#1a8c6e', color:'white', cursor:'pointer', fontSize:13, fontWeight:500 }}>
+          + Book Session
+        </button>
+      ) : undefined
     }>
+
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
         <div style={{ fontSize:13, color:'#8aab9e' }}>
-          Week of {weekDates[0].toLocaleDateString('en-KE', { day:'numeric', month:'long', year:'numeric' })}
+          Week of {weekDates[0].toLocaleDateString('en-KE',{ day:'numeric', month:'long', year:'numeric' })}
         </div>
         <div style={{ display:'flex', gap:8 }}>
-          <button onClick={() => setWeekOffset(w => w-1)} style={{ padding:'8px 14px', borderRadius:8, border:'1px solid #d6e8e0', background:'white', cursor:'pointer', fontSize:13 }}>Prev</button>
-          <button onClick={() => setWeekOffset(0)}        style={{ padding:'8px 14px', borderRadius:8, border:'1px solid #d6e8e0', background:'white', cursor:'pointer', fontSize:13 }}>Today</button>
-          <button onClick={() => setWeekOffset(w => w+1)} style={{ padding:'8px 14px', borderRadius:8, border:'1px solid #d6e8e0', background:'white', cursor:'pointer', fontSize:13 }}>Next</button>
+          <button onClick={() => setWeekOffset(w=>w-1)} style={{ padding:'8px 14px', borderRadius:8, border:'1px solid #d6e8e0', background:'white', cursor:'pointer', fontSize:13 }}>← Prev</button>
+          <button onClick={() => setWeekOffset(0)}      style={{ padding:'8px 14px', borderRadius:8, border:'1px solid #d6e8e0', background:'white', cursor:'pointer', fontSize:13 }}>Today</button>
+          <button onClick={() => setWeekOffset(w=>w+1)} style={{ padding:'8px 14px', borderRadius:8, border:'1px solid #d6e8e0', background:'white', cursor:'pointer', fontSize:13 }}>Next →</button>
         </div>
       </div>
+
+      {isReadOnly && (
+        <div style={{ padding:"10px 16px", borderRadius:10, background:"#f8faf9", border:"1px solid #d6e8e0", fontSize:12.5, color:"#8aab9e", marginBottom:14, textAlign:"center" }}>
+          👁 View only — contact reception to book or change appointments
+        </div>
+      )}
 
       {loading ? (
         <div style={{ textAlign:'center', padding:60, color:'#8aab9e' }}>Loading schedule...</div>
@@ -220,7 +213,7 @@ export default function Schedule() {
                             <div
                               key={appt.id}
                               onClick={() => setSelectedAppt(selectedAppt?.id === appt.id ? null : appt)}
-                              style={{ background:color+'22', border:'1px solid '+color+'66', borderRadius:6, padding:'4px 7px', marginBottom:3, cursor:'pointer', position:'relative' }}
+                              style={{ background:color+'22', border:'1px solid '+color+'66', borderRadius:6, padding:'4px 7px', marginBottom:3, cursor:'pointer' }}
                             >
                               <div style={{ fontWeight:600, color, fontSize:11 }}>{appt.client?.fullName ?? 'Client'}</div>
                               <div style={{ fontSize:10, color:'#4a6359' }}>{appt.therapyType} · {appt.therapist?.fullName ?? 'Unassigned'}</div>
@@ -254,20 +247,22 @@ export default function Schedule() {
             <div><strong style={{ color:'#1a2724' }}>Status:</strong> <span style={{ color:STATUS_COLORS[selectedAppt.status]??'#8aab9e', fontWeight:600 }}>{selectedAppt.status}</span></div>
             {selectedAppt.notes && <div><strong style={{ color:'#1a2724' }}>Notes:</strong> {selectedAppt.notes}</div>}
           </div>
-          <div style={{ display:'flex', gap:8, marginTop:14 }}>
-            <button
-              onClick={() => openEdit(selectedAppt)}
-              style={{ flex:1, padding:'7px', borderRadius:8, border:'1px solid #d6e8e0', background:'white', fontSize:12.5, cursor:'pointer', color:'#1a8c6e', fontWeight:500 }}
-            >
-              ✏️ Edit
-            </button>
-            <button
-              onClick={() => { setConfirmDelete(selectedAppt); setSelectedAppt(null) }}
-              style={{ flex:1, padding:'7px', borderRadius:8, border:'none', background:'#fde8ed', fontSize:12.5, cursor:'pointer', color:'#d63f5c', fontWeight:500 }}
-            >
-              🗑 Delete
-            </button>
-          </div>
+          {!isReadOnly ? (
+            <div style={{ display:'flex', gap:8, marginTop:14 }}>
+              <button onClick={() => openEdit(selectedAppt)}
+                style={{ flex:1, padding:'7px', borderRadius:8, border:'1px solid #d6e8e0', background:'white', fontSize:12.5, cursor:'pointer', color:'#1a8c6e', fontWeight:500 }}>
+                ✏️ Edit
+              </button>
+              <button onClick={() => { setConfirmDelete(selectedAppt); setSelectedAppt(null) }}
+                style={{ flex:1, padding:'7px', borderRadius:8, border:'none', background:'#fde8ed', fontSize:12.5, cursor:'pointer', color:'#d63f5c', fontWeight:500 }}>
+                🗑 Delete
+              </button>
+            </div>
+          ) : (
+            <div style={{ marginTop:14, padding:"8px 12px", borderRadius:8, background:"#f8faf9", fontSize:12, color:"#8aab9e", textAlign:"center" }}>
+              👁 View only — contact reception to make changes
+            </div>
+          )}
         </div>
       )}
 
@@ -281,23 +276,20 @@ export default function Schedule() {
             </div>
             <form onSubmit={handleSubmit}>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:12 }}>
-                <div>
-                  <label style={{ fontSize:12, color:'#4a6359', display:'block', marginBottom:4 }}>Client</label>
-                  <select required value={clientId} onChange={e => setClientId(e.target.value)} style={{ width:'100%', padding:'8px 12px', borderRadius:8, border:'1px solid #d6e8e0', fontSize:13, boxSizing:'border-box' }}>
+                <div><label style={lbl}>Client</label>
+                  <select required value={clientId} onChange={e=>setClientId(e.target.value)} style={inp}>
                     <option value="">Select client...</option>
                     {clients.map(c => <option key={c.id} value={c.id}>{c.fullName}</option>)}
                   </select>
                 </div>
-                <div>
-                  <label style={{ fontSize:12, color:'#4a6359', display:'block', marginBottom:4 }}>Therapist</label>
-                  <select value={therapistId} onChange={e => setTherapistId(e.target.value)} style={{ width:'100%', padding:'8px 12px', borderRadius:8, border:'1px solid #d6e8e0', fontSize:13, boxSizing:'border-box' }}>
+                <div><label style={lbl}>Therapist</label>
+                  <select value={therapistId} onChange={e=>setTherapistId(e.target.value)} style={inp}>
                     <option value="">Select therapist...</option>
                     {therapists.map(m => <option key={m.id} value={m.id}>{m.fullName}</option>)}
                   </select>
                 </div>
-                <div>
-                  <label style={{ fontSize:12, color:'#4a6359', display:'block', marginBottom:4 }}>Therapy type</label>
-                  <select value={therapyType} onChange={e => setTherapyType(e.target.value)} style={{ width:'100%', padding:'8px 12px', borderRadius:8, border:'1px solid #d6e8e0', fontSize:13, boxSizing:'border-box' }}>
+                <div><label style={lbl}>Therapy type</label>
+                  <select value={therapyType} onChange={e=>setTherapyType(e.target.value)} style={inp}>
                     <option value="OT">Occupational Therapy</option>
                     <option value="SPEECH">Speech Therapy</option>
                     <option value="ABA">ABA</option>
@@ -307,19 +299,18 @@ export default function Schedule() {
                     <option value="PHYSIO">Physiotherapy</option>
                   </select>
                 </div>
-                <div>
-                  <label style={{ fontSize:12, color:'#4a6359', display:'block', marginBottom:4 }}>Duration (min)</label>
-                  <input type="number" min="1" value={durationMin} onChange={e => setDurationMin(e.target.value)} style={{ width:'100%', padding:'8px 12px', borderRadius:8, border:'1px solid #d6e8e0', fontSize:13, boxSizing:'border-box' }} />
+                <div><label style={lbl}>Duration (min)</label>
+                  <input type="number" min="1" value={durationMin} onChange={e=>setDurationMin(e.target.value)} style={inp}/>
                 </div>
               </div>
               <div style={{ marginBottom:12 }}>
-                <label style={{ fontSize:12, color:'#4a6359', display:'block', marginBottom:4 }}>Date and time</label>
-                <input required type="datetime-local" value={scheduledAt} onChange={e => setScheduledAt(e.target.value)} style={{ width:'100%', padding:'8px 12px', borderRadius:8, border:'1px solid #d6e8e0', fontSize:13, boxSizing:'border-box' }} />
+                <label style={lbl}>Date and time</label>
+                <input required type="datetime-local" value={scheduledAt} onChange={e=>setScheduledAt(e.target.value)} style={inp}/>
               </div>
               {editAppt && (
                 <div style={{ marginBottom:12 }}>
-                  <label style={{ fontSize:12, color:'#4a6359', display:'block', marginBottom:4 }}>Status</label>
-                  <select value={status} onChange={e => setStatus(e.target.value)} style={{ width:'100%', padding:'8px 12px', borderRadius:8, border:'1px solid #d6e8e0', fontSize:13, boxSizing:'border-box' }}>
+                  <label style={lbl}>Status</label>
+                  <select value={status} onChange={e=>setStatus(e.target.value)} style={inp}>
                     <option value="SCHEDULED">Scheduled</option>
                     <option value="CONFIRMED">Confirmed</option>
                     <option value="IN_SESSION">In Session</option>
@@ -330,8 +321,8 @@ export default function Schedule() {
                 </div>
               )}
               <div style={{ marginBottom:20 }}>
-                <label style={{ fontSize:12, color:'#4a6359', display:'block', marginBottom:4 }}>Notes</label>
-                <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} style={{ width:'100%', padding:'8px 12px', borderRadius:8, border:'1px solid #d6e8e0', fontSize:13, boxSizing:'border-box', resize:'vertical' }} />
+                <label style={lbl}>Notes</label>
+                <textarea value={notes} onChange={e=>setNotes(e.target.value)} rows={2} style={{ ...inp, resize:"vertical" as const }}/>
               </div>
               <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
                 <button type="button" onClick={() => setShowForm(false)} style={{ padding:'9px 16px', borderRadius:8, border:'1px solid #d6e8e0', background:'white', fontSize:13, cursor:'pointer', color:'#4a6359' }}>Cancel</button>
@@ -350,7 +341,7 @@ export default function Schedule() {
           <div style={{ background:'white', borderRadius:16, padding:28, width:400 }}>
             <div style={{ fontSize:16, fontWeight:600, color:'#1a2724', marginBottom:10 }}>Delete appointment?</div>
             <div style={{ fontSize:13, color:'#4a6359', marginBottom:20, lineHeight:1.6 }}>
-              This will permanently delete the <strong>{confirmDelete.therapyType}</strong> session for <strong>{confirmDelete.client?.fullName ?? 'this client'}</strong> on {new Date(confirmDelete.scheduledAt).toLocaleDateString('en-KE',{ weekday:'long', day:'numeric', month:'long' })}. Any session notes will also be deleted.
+              Permanently delete the <strong>{confirmDelete.therapyType}</strong> session for <strong>{confirmDelete.client?.fullName ?? 'this client'}</strong> on {new Date(confirmDelete.scheduledAt).toLocaleDateString('en-KE',{ weekday:'long', day:'numeric', month:'long' })}. Session notes will also be deleted.
             </div>
             <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
               <button onClick={() => setConfirmDelete(null)} style={{ padding:'9px 16px', borderRadius:8, border:'1px solid #d6e8e0', background:'white', fontSize:13, cursor:'pointer', color:'#4a6359' }}>Cancel</button>

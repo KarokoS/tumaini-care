@@ -3,112 +3,74 @@ import { NavLink, useNavigate } from "react-router-dom"
 import { useAuthStore } from "../stores/auth.store"
 import styles from "./Layout.module.css"
 
-type NavItem = { label: string; path: string; icon: string }
+type NavItem    = { label: string; path: string; icon: string }
 type NavSection = { label: string; items: NavItem[] }
 
 function getNavSections(role: string): NavSection[] {
-  const all: NavSection[] = [
-    {
-      label: "Main",
-      items: [
-        { label: "Dashboard",      path: "/dashboard",      icon: "⊞" },
-        { label: "Clients",        path: "/clients",        icon: "👥" },
-        { label: "Import Clients", path: "/clients/import", icon: "📥" },
-        { label: "Schedule",       path: "/schedule",       icon: "📅" },
-      ]
-    },
-    {
-      label: "Therapy",
-      items: [
-        { label: "Sessions",       path: "/sessions",       icon: "📝" },
-        { label: "Therapy Plans",  path: "/plans",          icon: "🎯" },
-        { label: "Assessments",    path: "/assessments",    icon: "📋" },
-        { label: "Reports",        path: "/reports",        icon: "📊" },
-      ]
-    },
-    {
-      label: "Operations",
-      items: [
-        { label: "Billing",            path: "/billing",           icon: "💳" },
-        { label: "Staff",              path: "/staff",             icon: "👤" },
-        { label: "Inventory",          path: "/inventory",         icon: "📦" },
-        { label: "Import Attendance",  path: "/attendance/import", icon: "📋" },
-      ]
-    }
+  if (role === "THERAPIST") return [
+    { label:"Main", items:[
+      { label:"Dashboard",     path:"/dashboard",  icon:"⊞" },
+      { label:"Clients",       path:"/clients",    icon:"👥" },
+      { label:"Schedule",      path:"/schedule",   icon:"📅" },
+    ]},
+    { label:"Therapy", items:[
+      { label:"Sessions",      path:"/sessions",     icon:"📝" },
+      { label:"Therapy Plans", path:"/plans",        icon:"🎯" },
+      { label:"Assessments",   path:"/assessments",  icon:"📋" },
+    ]},
+    { label:"Operations", items:[
+      { label:"Inventory",     path:"/inventory",    icon:"📦" },
+    ]},
   ]
 
-  if (role === "THERAPIST") {
-    return [
-      {
-        label: "Main",
-        items: [
-          { label: "Dashboard",     path: "/dashboard",  icon: "⊞" },
-          { label: "Clients",       path: "/clients",    icon: "👥" },
-          { label: "Schedule",      path: "/schedule",   icon: "📅" },
-        ]
-      },
-      {
-        label: "Therapy",
-        items: [
-          { label: "Sessions",      path: "/sessions",      icon: "📝" },
-          { label: "Therapy Plans", path: "/plans",         icon: "🎯" },
-          { label: "Assessments",   path: "/assessments",   icon: "📋" },
-        ]
-      },
-      {
-        label: "Operations",
-        items: [
-          { label: "Inventory",     path: "/inventory",     icon: "📦" },
-        ]
-      }
-    ]
-  }
+  if (role === "RECEPTIONIST") return [
+    { label:"Main", items:[
+      { label:"Dashboard",     path:"/dashboard",  icon:"⊞" },
+      { label:"Clients",       path:"/clients",    icon:"👥" },
+      { label:"Schedule",      path:"/schedule",   icon:"📅" },
+    ]},
+    { label:"Operations", items:[
+      { label:"Billing",       path:"/billing",    icon:"💳" },
+      { label:"Inventory",     path:"/inventory",  icon:"📦" },
+    ]},
+  ]
 
-  if (role === "RECEPTIONIST") {
-    return [
-      {
-        label: "Main",
-        items: [
-          { label: "Dashboard",     path: "/dashboard",  icon: "⊞" },
-          { label: "Clients",       path: "/clients",    icon: "👥" },
-          { label: "Schedule",      path: "/schedule",   icon: "📅" },
-        ]
-      },
-      {
-        label: "Operations",
-        items: [
-          { label: "Billing",       path: "/billing",    icon: "💳" },
-          { label: "Inventory",     path: "/inventory",  icon: "📦" },
-        ]
-      }
-    ]
-  }
+  if (role === "FINANCE") return [
+    { label:"Main", items:[
+      { label:"Dashboard",     path:"/dashboard",  icon:"⊞" },
+    ]},
+    { label:"Operations", items:[
+      { label:"Billing",       path:"/billing",    icon:"💳" },
+      { label:"Reports",       path:"/reports",    icon:"📊" },
+    ]},
+  ]
 
-  if (role === "FINANCE") {
-    return [
-      {
-        label: "Main",
-        items: [
-          { label: "Dashboard",     path: "/dashboard",  icon: "⊞" },
-        ]
-      },
-      {
-        label: "Operations",
-        items: [
-          { label: "Billing",       path: "/billing",    icon: "💳" },
-          { label: "Reports",       path: "/reports",    icon: "📊" },
-        ]
-      }
-    ]
-  }
-
-  return all
+  return [
+    { label:"Main", items:[
+      { label:"Dashboard",         path:"/dashboard",        icon:"⊞" },
+      { label:"Clients",           path:"/clients",          icon:"👥" },
+      { label:"Import Clients",    path:"/clients/import",   icon:"📥" },
+      { label:"Schedule",          path:"/schedule",         icon:"📅" },
+    ]},
+    { label:"Therapy", items:[
+      { label:"Sessions",          path:"/sessions",         icon:"📝" },
+      { label:"Therapy Plans",     path:"/plans",            icon:"🎯" },
+      { label:"Assessments",       path:"/assessments",      icon:"📋" },
+      { label:"Reports",           path:"/reports",          icon:"📊" },
+    ]},
+    { label:"Operations", items:[
+      { label:"Billing",           path:"/billing",          icon:"💳" },
+      { label:"Staff",             path:"/staff",            icon:"👤" },
+      { label:"Inventory",         path:"/inventory",        icon:"📦" },
+      { label:"Import Attendance", path:"/attendance/import",icon:"📋" },
+    ]},
+  ]
 }
 
 interface LayoutProps {
-  title: string
+  title:    string
   children: ReactNode
-  action?: ReactNode
+  action?:  ReactNode
 }
 
 export default function Layout({ title, children, action }: LayoutProps) {
@@ -124,6 +86,7 @@ export default function Layout({ title, children, action }: LayoutProps) {
   }, [sidebarOpen])
 
   const navSections = getNavSections(user?.role ?? "")
+  const isAdminOrManager = user?.role === "SUPER_ADMIN" || user?.role === "MANAGER"
 
   return (
     <div className={styles.container}>
@@ -134,7 +97,7 @@ export default function Layout({ title, children, action }: LayoutProps) {
 
       <aside className={`${styles.aside} ${sidebarOpen ? styles.asideOpen : ""}`} aria-label="Application sidebar">
         <div className={styles.brand}>
-          <img src="/logo.png" alt="Tumaini Logo" style={{ width: 36, height: 36, objectFit: "contain", flexShrink: 0 }} />
+          <img src="/logo.png" alt="Tumaini Logo" style={{ width:36, height:36, objectFit:"contain", flexShrink:0 }} />
           <div>
             <div className={styles.brandTitle}>Tumaini</div>
             <div className={styles.brandSub}>St. Thorlak Centre</div>
@@ -142,11 +105,11 @@ export default function Layout({ title, children, action }: LayoutProps) {
         </div>
 
         <nav className={styles.nav} aria-label="Primary navigation">
-          {navSections.map((section) => (
+          {navSections.map(section => (
             <div key={section.label}>
               <div className={styles.sectionTitle}>{section.label}</div>
               <ul className={styles.navList}>
-                {section.items.map((item) => (
+                {section.items.map(item => (
                   <li key={item.path} className={styles.navItem}>
                     <NavLink
                       to={item.path}
@@ -186,16 +149,32 @@ export default function Layout({ title, children, action }: LayoutProps) {
           >
             ☰
           </button>
+
           <h1 className={styles.title}>{title}</h1>
-          <div className={styles.searchBox}>Search clients, sessions...</div>
+
+          <div style={{ position:"relative", marginLeft:"auto" }}>
+            <input
+              placeholder="Search clients..."
+              onKeyDown={e => {
+                if (e.key === "Enter") {
+                  const val = (e.target as HTMLInputElement).value.trim()
+                  if (val) navigate(`/clients?q=${encodeURIComponent(val)}`)
+                }
+              }}
+              style={{ padding:"7px 14px 7px 32px", borderRadius:10, border:"1px solid #d6e8e0", fontSize:13, color:"#4a6359", width:220, outline:"none", background:"#f0f4f2" }}
+            />
+            <span style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", fontSize:13, color:"#8aab9e" }}>🔍</span>
+          </div>
+
           <div className={styles.headerActions}>
-            <div className={styles.iconBtn} title="Messages" onClick={() => alert("Messaging coming soon")} style={{ cursor: "pointer" }}>💬</div>
-            <div className={styles.iconBtn} title="Notifications" onClick={() => alert("No new notifications")} style={{ cursor: "pointer", position: "relative" }}>
+            <div className={styles.iconBtn} title="Change Password" onClick={() => navigate("/change-password")} style={{ cursor:"pointer" }}>🔑</div>
+            <div className={styles.iconBtn} title="Notifications" onClick={() => navigate("/reports")} style={{ cursor:"pointer", position:"relative" }}>
               🔔<span className={styles.notificationDot} />
             </div>
-            <div className={styles.iconBtn} title="Settings" onClick={() => navigate("/staff")} style={{ cursor: "pointer" }}>⚙️</div>
+            <div className={styles.iconBtn} title="Settings" onClick={() => navigate(isAdminOrManager ? "/staff" : "/dashboard")} style={{ cursor:"pointer" }}>⚙️</div>
           </div>
-          {action && <div style={{ marginLeft: 8 }}>{action}</div>}
+
+          {action && <div style={{ marginLeft:8 }}>{action}</div>}
         </header>
         <main className={styles.main}>{children}</main>
       </div>
