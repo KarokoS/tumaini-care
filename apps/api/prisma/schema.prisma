@@ -149,6 +149,10 @@ model Appointment {
   client      Client            @relation(fields: [clientId], references: [id])
   therapist   Staff?            @relation(fields: [therapistId], references: [id])
   sessionNote SessionNote?
+  recurringGroupId String?
+  recurPattern     String?
+  recurDays        String?
+  recurEndDate     DateTime?
 }
 
 model SessionNote {

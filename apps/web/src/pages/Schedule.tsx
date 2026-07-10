@@ -48,6 +48,15 @@ export default function Schedule() {
   const [notes, setNotes]             = useState('')
   const [status, setStatus]           = useState('SCHEDULED')
 
+  const [showRecurring, setShowRecurring]     = useState(false)
+  const [recurPattern, setRecurPattern]       = useState<"WEEKLY"|"FORTNIGHTLY"|"CUSTOM">("WEEKLY")
+  const [recurDays, setRecurDays]             = useState<number[]>([1]) // Monday default
+  const [recurStartDate, setRecurStartDate]   = useState('')
+  const [recurStartTime, setRecurStartTime]   = useState('09:00')
+  const [recurWeeks, setRecurWeeks]           = useState(12)
+  const [recurResult, setRecurResult]         = useState<any>(null)
+  const [savingRecur, setSavingRecur]         = useState(false)
+
   useEffect(() => { loadData() }, [])
 
   function loadData() {
@@ -143,6 +152,38 @@ export default function Schedule() {
     finally { setDeleting(false) }
   }
 
+  async function saveRecurring(e: React.FormEvent) {
+    e.preventDefault()
+    setSavingRecur(true)
+    setRecurResult(null)
+    try {
+      const res = await api.post('/appointments/recurring', {
+        clientId,
+        therapistId,
+        therapyType,
+        startDate:  recurStartDate,
+        startTime:  recurStartTime,
+        durationMin: parseInt(durationMin),
+        pattern:    recurPattern,
+        customDays: recurDays,
+        weeks:      recurWeeks,
+        notes,
+      })
+      setRecurResult(res.data)
+      loadData()
+    } catch (err: any) {
+      alert(err.response?.data?.message ?? 'Failed to create recurring appointments')
+    } finally {
+      setSavingRecur(false)
+    }
+  }
+
+  function toggleRecurDay(day: number) {
+    setRecurDays(prev =>
+      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day].sort()
+    )
+  }
+
   const weekDates  = getWeekDates()
   const todayStr   = new Date().toDateString()
   const therapists = staff.filter(m => m.role === 'THERAPIST')
@@ -158,9 +199,20 @@ export default function Schedule() {
   return (
     <Layout title="Schedule" action={
       !isReadOnly ? (
-        <button onClick={openAdd} style={{ padding:'8px 16px', borderRadius:8, border:'none', background:'#1a8c6e', color:'white', cursor:'pointer', fontSize:13, fontWeight:500 }}>
+      <div style={{ display:'flex', gap:8 }}>
+        <button
+        onClick={() => { setShowRecurring(true); setRecurResult(null) }}
+        style={{ padding:'8px 16px', borderRadius:8, border:'1px solid #1a8c6e', background:'white', color:'#1a8c6e', cursor:'pointer', fontSize:13, fontWeight:500 }}
+        >
+        🔁 Recurring
+        </button>
+        <button
+        onClick={openAdd}
+        style={{ padding:'8px 16px', borderRadius:8, border:'none', background:'#1a8c6e', color:'white', cursor:'pointer', fontSize:13, fontWeight:500 }}
+        >
           + Book Session
         </button>
+      </div>
       ) : undefined
     }>
 
@@ -215,7 +267,10 @@ export default function Schedule() {
                               onClick={() => setSelectedAppt(selectedAppt?.id === appt.id ? null : appt)}
                               style={{ background:color+'22', border:'1px solid '+color+'66', borderRadius:6, padding:'4px 7px', marginBottom:3, cursor:'pointer' }}
                             >
-                              <div style={{ fontWeight:600, color, fontSize:11 }}>{appt.client?.fullName ?? 'Client'}</div>
+                              <div style={{ fontWeight:600, color, fontSize:11 }}>
+                                {appt.client?.fullName ?? 'Client'}
+                                {(appt as any).isRecurring && <span style={{ marginLeft:4, fontSize:9 }}>🔁</span>}
+                              </div>
                               <div style={{ fontSize:10, color:'#4a6359' }}>{appt.therapyType} · {appt.therapist?.fullName ?? 'Unassigned'}</div>
                               <div style={{ fontSize:9, marginTop:2, color:STATUS_COLORS[appt.status]??'#8aab9e', fontWeight:600 }}>{appt.status}</div>
                             </div>
@@ -352,6 +407,167 @@ export default function Schedule() {
           </div>
         </div>
       )}
+
+      {/* Recurring appointments modal */}
+{showRecurring && (
+  <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:100 }}>
+    <div style={{ background:'white', borderRadius:16, padding:28, width:540, maxHeight:'90vh', overflowY:'auto' }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
+        <div>
+          <h2 style={{ fontSize:16, fontWeight:600, color:'#1a2724', margin:0 }}>🔁 Recurring Appointments</h2>
+          <div style={{ fontSize:12, color:'#8aab9e', marginTop:4 }}>Generates up to 12 weeks — skips Kenya public holidays automatically</div>
+        </div>
+        <button onClick={() => { setShowRecurring(false); setRecurResult(null) }} style={{ border:'none', background:'none', fontSize:20, cursor:'pointer', color:'#8aab9e' }}>×</button>
+      </div>
+
+      {recurResult ? (
+        <div>
+          <div style={{ background:'#e6f4ef', border:'1px solid #b6ddd1', borderRadius:12, padding:'20px 24px', marginBottom:20 }}>
+            <div style={{ fontSize:15, fontWeight:600, color:'#1a8c6e', marginBottom:12 }}>✓ Recurring appointments created!</div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+              {[
+                { label:'Sessions booked',   value: recurResult.count },
+                { label:'Public holidays skipped', value: recurResult.skipped > 0 ? recurResult.skipped : '0' },
+                { label:'First session',     value: recurResult.first ? new Date(recurResult.first).toLocaleDateString('en-KE',{ weekday:'short', day:'numeric', month:'short' }) : '—' },
+                { label:'Last session',      value: recurResult.last  ? new Date(recurResult.last).toLocaleDateString('en-KE',{ weekday:'short', day:'numeric', month:'short' }) : '—' },
+              ].map((item, i) => (
+                <div key={i} style={{ background:'white', borderRadius:8, padding:'10px 14px' }}>
+                  <div style={{ fontSize:11, color:'#8aab9e', textTransform:'uppercase', marginBottom:4 }}>{item.label}</div>
+                  <div style={{ fontSize:16, fontWeight:600, color:'#1a2724' }}>{item.value}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div style={{ display:'flex', gap:10 }}>
+            <button
+              onClick={() => { setRecurResult(null) }}
+              style={{ flex:1, padding:'10px', borderRadius:8, border:'1px solid #d6e8e0', background:'white', fontSize:13, cursor:'pointer', color:'#4a6359' }}
+            >
+              Book Another
+            </button>
+            <button
+              onClick={() => { setShowRecurring(false); setRecurResult(null) }}
+              style={{ flex:1, padding:'10px', borderRadius:8, border:'none', background:'#1a8c6e', color:'white', fontSize:13, fontWeight:500, cursor:'pointer' }}
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      ) : (
+        <form onSubmit={saveRecurring}>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
+            <div style={{ gridColumn:'span 2' }}>
+              <label style={{ fontSize:12, color:'#4a6359', display:'block', marginBottom:4 }}>Client</label>
+              <select required value={clientId} onChange={e => setClientId(e.target.value)}
+                style={{ width:'100%', padding:'8px 12px', borderRadius:8, border:'1px solid #d6e8e0', fontSize:13, boxSizing:'border-box' }}>
+                <option value="">Select client...</option>
+                {clients.map(c => <option key={c.id} value={c.id}>{c.fullName}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize:12, color:'#4a6359', display:'block', marginBottom:4 }}>Therapist</label>
+              <select value={therapistId} onChange={e => setTherapistId(e.target.value)}
+                style={{ width:'100%', padding:'8px 12px', borderRadius:8, border:'1px solid #d6e8e0', fontSize:13, boxSizing:'border-box' }}>
+                <option value="">Select therapist...</option>
+                {therapists.map(m => <option key={m.id} value={m.id}>{m.fullName}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize:12, color:'#4a6359', display:'block', marginBottom:4 }}>Therapy type</label>
+              <select value={therapyType} onChange={e => setTherapyType(e.target.value)}
+                style={{ width:'100%', padding:'8px 12px', borderRadius:8, border:'1px solid #d6e8e0', fontSize:13, boxSizing:'border-box' }}>
+                <option value="OT">Occupational Therapy</option>
+                <option value="SPEECH">Speech Therapy</option>
+                <option value="ABA">ABA</option>
+                <option value="SENSORY">Sensory</option>
+                <option value="GROUP">Group</option>
+                <option value="PSYCH">Psychology</option>
+                <option value="PHYSIO">Physiotherapy</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize:12, color:'#4a6359', display:'block', marginBottom:4 }}>Start date</label>
+              <input required type="date" value={recurStartDate} onChange={e => setRecurStartDate(e.target.value)}
+                style={{ width:'100%', padding:'8px 12px', borderRadius:8, border:'1px solid #d6e8e0', fontSize:13, boxSizing:'border-box' }} />
+            </div>
+            <div>
+              <label style={{ fontSize:12, color:'#4a6359', display:'block', marginBottom:4 }}>Session time</label>
+              <input required type="time" value={recurStartTime} onChange={e => setRecurStartTime(e.target.value)}
+                style={{ width:'100%', padding:'8px 12px', borderRadius:8, border:'1px solid #d6e8e0', fontSize:13, boxSizing:'border-box' }} />
+            </div>
+            <div>
+              <label style={{ fontSize:12, color:'#4a6359', display:'block', marginBottom:4 }}>Duration (min)</label>
+              <input type="number" value={durationMin} onChange={e => setDurationMin(e.target.value)}
+                style={{ width:'100%', padding:'8px 12px', borderRadius:8, border:'1px solid #d6e8e0', fontSize:13, boxSizing:'border-box' }} />
+            </div>
+          </div>
+
+          {/* Recurrence pattern */}
+          <div style={{ marginBottom:14 }}>
+            <label style={{ fontSize:12, color:'#4a6359', display:'block', marginBottom:8 }}>Recurrence pattern</label>
+            <div style={{ display:'flex', gap:8, marginBottom:12 }}>
+              {([["WEEKLY","Every week"],["FORTNIGHTLY","Every 2 weeks"],["CUSTOM","Custom days"]] as const).map(([val, label]) => (
+                <button key={val} type="button" onClick={() => setRecurPattern(val)}
+                  style={{ padding:'7px 14px', borderRadius:8, border:'1px solid', borderColor:recurPattern===val?'#1a8c6e':'#d6e8e0', background:recurPattern===val?'#e6f4ef':'white', color:recurPattern===val?'#1a8c6e':'#4a6359', fontSize:12.5, fontWeight:500, cursor:'pointer' }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {recurPattern === 'CUSTOM' && (
+              <div>
+                <div style={{ fontSize:12, color:'#4a6359', marginBottom:6 }}>Select days of the week</div>
+                <div style={{ display:'flex', gap:6 }}>
+                  {[['S',0],['M',1],['T',2],['W',3],['T',4],['F',5],['S',6]].map(([label, day]) => (
+                    <button key={day} type="button" onClick={() => toggleRecurDay(day as number)}
+                      style={{ width:36, height:36, borderRadius:'50%', border:'1px solid', borderColor:recurDays.includes(day as number)?'#1a8c6e':'#d6e8e0', background:recurDays.includes(day as number)?'#1a8c6e':'white', color:recurDays.includes(day as number)?'white':'#4a6359', fontSize:12.5, fontWeight:600, cursor:'pointer' }}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Number of weeks */}
+          <div style={{ marginBottom:14 }}>
+            <label style={{ fontSize:12, color:'#4a6359', display:'block', marginBottom:8 }}>Generate for how many weeks?</label>
+            <div style={{ display:'flex', gap:8 }}>
+              {[4,8,12].map(w => (
+                <button key={w} type="button" onClick={() => setRecurWeeks(w)}
+                  style={{ padding:'7px 16px', borderRadius:8, border:'1px solid', borderColor:recurWeeks===w?'#1a8c6e':'#d6e8e0', background:recurWeeks===w?'#e6f4ef':'white', color:recurWeeks===w?'#1a8c6e':'#4a6359', fontSize:12.5, fontWeight:500, cursor:'pointer' }}>
+                  {w} weeks{w===12?' (1 term)':''}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Info banner */}
+          <div style={{ background:'#fef3c7', border:'1px solid #fbbf24', borderRadius:8, padding:'10px 14px', marginBottom:16, fontSize:12.5, color:'#92400e' }}>
+            🇰🇪 Kenya public holidays will be automatically skipped when generating appointments.
+          </div>
+
+          <div style={{ marginBottom:16 }}>
+            <label style={{ fontSize:12, color:'#4a6359', display:'block', marginBottom:4 }}>Notes (applied to all sessions)</label>
+            <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional notes..."
+              style={{ width:'100%', padding:'8px 12px', borderRadius:8, border:'1px solid #d6e8e0', fontSize:13, boxSizing:'border-box' }} />
+          </div>
+
+          <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
+            <button type="button" onClick={() => setShowRecurring(false)}
+              style={{ padding:'9px 16px', borderRadius:8, border:'1px solid #d6e8e0', background:'white', fontSize:13, cursor:'pointer', color:'#4a6359' }}>
+              Cancel
+            </button>
+            <button type="submit" disabled={savingRecur}
+              style={{ padding:'9px 16px', borderRadius:8, border:'none', background:'#1a8c6e', color:'white', fontSize:13, fontWeight:500, cursor:'pointer', opacity:savingRecur?0.7:1 }}>
+              {savingRecur ? 'Creating...' : `Generate ${recurPattern === 'WEEKLY' ? recurWeeks : recurPattern === 'FORTNIGHTLY' ? Math.floor(recurWeeks/2) : recurWeeks * recurDays.length} sessions`}
+            </button>
+          </div>
+        </form>
+      )}
+    </div>
+  </div>
+)}
     </Layout>
   )
 }

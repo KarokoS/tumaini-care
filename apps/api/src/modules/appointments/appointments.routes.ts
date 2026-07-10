@@ -1,6 +1,8 @@
 import { FastifyInstance } from 'fastify'
 import { prisma } from '../../shared/prisma'
 import { requireRole, JWTPayload } from '../../shared/middleware/rbac'
+import { generateRecurringDates } from '../../shared/holidays'
+import { randomUUID } from 'crypto'
 
 export async function appointmentRoutes(fastify: FastifyInstance) {
   fastify.get('/appointments', {
@@ -197,5 +199,88 @@ imported++
     await prisma.sessionNote.deleteMany({ where: { appointmentId: id } })
     await prisma.appointment.delete({ where: { id } })
     return reply.send({ success: true })
+  })
+
+  // ── Create recurring appointments ──
+  fastify.post('/appointments/recurring', {
+    preHandler: requireRole('SUPER_ADMIN', 'MANAGER', 'RECEPTIONIST')
+  }, async (request, reply) => {
+    const body = request.body as {
+      clientId:    string
+      therapistId: string
+      therapyType: string
+      startDate:   string
+      startTime:   string
+      durationMin: number
+      pattern:     "WEEKLY" | "FORTNIGHTLY" | "CUSTOM"
+      customDays:  number[]
+      weeks:       number
+      notes:       string
+    }
+
+    const [year, month, day] = body.startDate.split('-').map(Number)
+    const [hour, minute]     = body.startTime.split(':').map(Number)
+    const startDate          = new Date(year, month - 1, day, hour, minute)
+
+    const dates = generateRecurringDates(
+      startDate,
+      body.pattern,
+      body.customDays ?? [],
+      body.weeks ?? 12
+    )
+
+    if (dates.length === 0) {
+      return reply.status(400).send({ message: "No valid dates generated — all dates may fall on public holidays." })
+    }
+
+    const groupId = randomUUID()
+
+    const appointments = await Promise.all(
+      dates.map(date =>
+        prisma.appointment.create({
+          data: {
+            clientId:        body.clientId,
+            therapistId:     body.therapistId || null,
+            therapyType:     body.therapyType,
+            scheduledAt:     date,
+            durationMin:     body.durationMin ?? 50,
+            status:          'SCHEDULED',
+            notes:           body.notes ?? '',
+            isRecurring:     true,
+            recurringGroupId: groupId,
+            recurPattern:    body.pattern,
+            recurDays:       body.customDays?.join(',') ?? '',
+          } as any
+        })
+      )
+    )
+
+    return reply.status(201).send({
+      count:   appointments.length,
+      groupId,
+      skipped: (body.weeks * (body.pattern === "WEEKLY" ? 1 : body.pattern === "FORTNIGHTLY" ? 0.5 : body.customDays?.length ?? 1)) - appointments.length,
+      first:   appointments[0]?.scheduledAt,
+      last:    appointments[appointments.length - 1]?.scheduledAt,
+    })
+  })
+
+  // ── Delete recurring group ──
+  fastify.delete('/appointments/recurring/:groupId', {
+    preHandler: requireRole('SUPER_ADMIN', 'MANAGER', 'RECEPTIONIST')
+  }, async (request, reply) => {
+    const { groupId } = request.params as { groupId: string }
+    const { from }    = request.query as { from?: string }
+
+    const where: any = { recurringGroupId: groupId }
+    if (from) {
+      where.scheduledAt = { gte: new Date(from) }
+    }
+
+    await prisma.sessionNote.deleteMany({
+      where: { appointment: where }
+    })
+
+    const result = await prisma.appointment.deleteMany({ where })
+    return reply.send({ deleted: result.count })
   })
 }
