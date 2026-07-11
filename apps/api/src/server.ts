@@ -85,4 +85,24 @@ async function start() {
   }
 }
 
+import { sendTomorrowReminders } from './shared/reminder'
+
+// Daily reminder at 5PM Kenya time (15:00 UTC)
+function scheduleDailyReminders() {
+  const now     = new Date()
+  const next5PM = new Date()
+  next5PM.setUTCHours(15, 0, 0, 0)
+  if (next5PM <= now) next5PM.setDate(next5PM.getDate() + 1)
+  const msUntil5PM = next5PM.getTime() - now.getTime()
+
+  setTimeout(() => {
+    sendTomorrowReminders()
+    setInterval(sendTomorrowReminders, 24 * 60 * 60 * 1000)
+  }, msUntil5PM)
+
+  fastify.log.info(`Daily reminders scheduled — first run in ${Math.round(msUntil5PM/1000/60)} minutes`)
+}
+
+scheduleDailyReminders()
+
 start()

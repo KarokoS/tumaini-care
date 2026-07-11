@@ -1,6 +1,7 @@
 import { FastifyInstance } from "fastify"
 import { prisma } from "../../shared/prisma"
 import { requireRole, JWTPayload } from "../../shared/middleware/rbac"
+import { sendPaymentRequest, sendPaymentConfirmation } from '../../shared/sms'
 
 export async function billingRoutes(fastify: FastifyInstance) {
 
@@ -23,15 +24,16 @@ export async function billingRoutes(fastify: FastifyInstance) {
   fastify.post("/invoices", {
     preHandler: requireRole("SUPER_ADMIN","MANAGER","FINANCE","RECEPTIONIST")
   }, async (request, reply) => {
-    const body = request.body as any
+    const body  = request.body as any
     const total = body.lineItems.reduce((sum: number, item: any) => {
       return sum + (item.quantity * item.unitPrice)
     }, 0)
     const count  = await prisma.invoice.count()
     const number = "INV-" + String(1001 + count).padStart(4, "0")
+
     const invoice = await prisma.invoice.create({
       data: {
-        clientId: body.clientId,
+        clientId:  body.clientId,
         number,
         amountKes: total,
         status:    total === 0 ? "PAID" : "SENT",
@@ -52,14 +54,34 @@ export async function billingRoutes(fastify: FastifyInstance) {
         lineItems: true,
       },
     })
+
+    // Send payment request SMS if amount > 0
+    try {
+      if (total > 0) {
+        const guardian = await prisma.guardian.findFirst({
+          where: { clientId: body.clientId, isPrimary: true }
+        })
+        if (guardian?.phone && invoice.client?.fullName) {
+          await sendPaymentRequest(
+            guardian.phone,
+            invoice.client.fullName,
+            total,
+            invoice.number
+          )
+        }
+      }
+    } catch (err) {
+      fastify.log.warn({ err }, 'Payment request SMS failed')
+    }
+
     return reply.status(201).send(invoice)
   })
 
   fastify.patch("/invoices/:id", {
     preHandler: requireRole("SUPER_ADMIN","MANAGER","FINANCE")
   }, async (request, reply) => {
-    const { id }  = request.params as { id: string }
-    const body    = request.body as any
+    const { id } = request.params as { id: string }
+    const body   = request.body as any
     const invoice = await prisma.invoice.update({
       where: { id },
       data:  body,

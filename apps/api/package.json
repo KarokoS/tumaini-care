@@ -13,6 +13,7 @@
     "@fastify/multipart": "^8.0.0",
     "@fastify/rate-limit": "^9.0.0",
     "@prisma/client": "5.22.0",
+    "africastalking": "^0.8.0",
     "axios": "^1.6.0",
     "bcryptjs": "^2.4.3",
     "bullmq": "^5.0.0",
@@ -26,6 +27,7 @@
     "zod": "^3.22.0"
   },
   "devDependencies": {
+    "@types/africastalking": "^0.8.0",
     "@types/bcryptjs": "^2.4.0",
     "@types/node": "^20.0.0",
     "@types/nodemailer": "^6.4.24",
