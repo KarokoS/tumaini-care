@@ -3,7 +3,7 @@ import Layout from "../components/Layout"
 import api from '../lib/api'
 import { useAuthStore } from '../stores/auth.store'
 
-type Guardian = { fullName: string }
+type Guardian = { fullName: string; phone?: string; email?: string }
 type Client   = { id: string; fullName: string; dob: string; diagnosis?: string | null; status: string; isProBono?: boolean; createdAt: string; guardians?: Guardian[] }
 
 function errorMessage(err: unknown, fallback: string) {
@@ -152,7 +152,10 @@ export default function Clients() {
                   </td>
                   <td style={{ padding:"12px 16px", color:"#4a6359" }}>{age} yrs</td>
                   <td style={{ padding:"12px 16px", color:"#4a6359" }}>{client.diagnosis ?? "—"}</td>
-                  <td style={{ padding:"12px 16px", color:"#4a6359" }}>{guardian?.fullName ?? "—"}</td>
+                  <td style={{ padding:"12px 16px", color:"#4a6359" }}>
+                    <div>{guardian?.fullName ?? "—"}</div>
+                    {guardian?.phone && <div style={{ fontSize:11.5, color:"#8aab9e", marginTop:2 }}>{guardian.phone}</div>}
+                  </td>
                   <td style={{ padding:"12px 16px" }}>
                     <span style={{ fontSize:11, padding:"2px 8px", borderRadius:20, background:client.status==="ACTIVE"?"#e6f4ef":"#f0f4f2", color:client.status==="ACTIVE"?"#1a8c6e":"#8aab9e", fontWeight:500 }}>
                       {client.status}
