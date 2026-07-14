@@ -18,6 +18,7 @@ import ImportAttendance from './pages/ImportAttendance'
 import ParentPortal from './pages/ParentPortal'
 import ChangePassword from './pages/ChangePassword'
 import ResetPassword from './pages/ResetPassword'
+import Timetable from './pages/Timetable'
 
 function ProtectedRoute({ children, roles }: { children: React.ReactNode; roles?: string[] }) {
   const { isAuthenticated, user } = useAuthStore()
@@ -51,6 +52,7 @@ export default function App() {
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/change-password" element={<ChangePassword />} />
         <Route path="/parent"         element={<ParentPortal />} />
+        <Route path="/timetable" element={<ProtectedRoute roles={[...ADMIN, "THERAPIST"]}><Timetable /></ProtectedRoute>} />
 
         {/* Dashboard — all staff */}
         <Route path="/dashboard" element={
