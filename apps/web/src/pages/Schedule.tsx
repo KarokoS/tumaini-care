@@ -3,7 +3,7 @@ import Layout from "../components/Layout"
 import api from '../lib/api'
 import { useAuthStore } from '../stores/auth.store'
 
-const HOURS = ['8:00','9:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00']
+const HOURS = ['8:00','9:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00']
 const DAYS  = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
 const COLORS: Record<string,string> = {
   OT:'#3b82f6', SPEECH:'#22c55e', ABA:'#a855f7',

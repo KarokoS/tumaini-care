@@ -4,7 +4,23 @@ export async function getAllClients(branchId: string, query?: string) {
   return prisma.client.findMany({ where: { branchId, ...(query && { fullName: { contains: query, mode: 'insensitive' } }) }, include: { guardians: { where: { isPrimary: true } }, _count: { select: { appointments: true, itps: true } } }, orderBy: { fullName: 'asc' } })
 }
 export async function getClientById(id: string) {
-  const client = await prisma.client.findUnique({ where: { id }, include: { guardians: true, itps: { include: { goals: true }, where: { status: 'ACTIVE' } }, appointments: { orderBy: { scheduledAt: 'desc' }, take: 10, include: { therapist: { select: { fullName: true } } } }, documents: { orderBy: { uploadedAt: 'desc' } } } })
+  const client = await prisma.client.findUnique({
+    where: { id },
+    include: {
+      guardians: true,
+      itps: {
+        include: { goals: true },
+        orderBy: { createdAt: 'desc' },
+        take: 3,
+      },
+      appointments: {
+        orderBy: { scheduledAt: 'desc' },
+        take: 10,
+        include: { therapist: { select: { fullName: true } } }
+      },
+      documents: { orderBy: { uploadedAt: 'desc' } }
+    }
+  })
   if (!client) throw new NotFoundError('Client')
   return client
 }
