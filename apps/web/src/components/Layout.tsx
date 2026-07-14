@@ -12,12 +12,12 @@ function getNavSections(role: string): NavSection[] {
       { label:"Dashboard",     path:"/dashboard",  icon:"⊞" },
       { label:"Clients",       path:"/clients",    icon:"👥" },
       { label:"Schedule",      path:"/schedule",   icon:"📅" },
-      { label:"My Timetable", path:"/timetable", icon:"🗓" },
     ]},
     { label:"Therapy", items:[
       { label:"Sessions",      path:"/sessions",     icon:"📝" },
       { label:"Therapy Plans", path:"/plans",        icon:"🎯" },
       { label:"Assessments",   path:"/assessments",  icon:"📋" },
+      { label:"My Timetable",  path:"/timetable",    icon:"🗓" },
     ]},
     { label:"Operations", items:[
       { label:"Inventory",     path:"/inventory",    icon:"📦" },
@@ -52,13 +52,13 @@ function getNavSections(role: string): NavSection[] {
       { label:"Clients",           path:"/clients",          icon:"👥" },
       { label:"Import Clients",    path:"/clients/import",   icon:"📥" },
       { label:"Schedule",          path:"/schedule",         icon:"📅" },
-      { label:"Staff Timetable", path:"/timetable", icon:"🗓" },
     ]},
     { label:"Therapy", items:[
       { label:"Sessions",          path:"/sessions",         icon:"📝" },
       { label:"Therapy Plans",     path:"/plans",            icon:"🎯" },
       { label:"Assessments",       path:"/assessments",      icon:"📋" },
       { label:"Reports",           path:"/reports",          icon:"📊" },
+      { label:"Staff Timetable",   path:"/timetable",        icon:"🗓" },
     ]},
     { label:"Operations", items:[
       { label:"Billing",           path:"/billing",          icon:"💳" },
@@ -87,7 +87,7 @@ export default function Layout({ title, children, action }: LayoutProps) {
     return () => { document.body.style.overflow = "" }
   }, [sidebarOpen])
 
-  const navSections = getNavSections(user?.role ?? "")
+  const navSections      = getNavSections(user?.role ?? "")
   const isAdminOrManager = user?.role === "SUPER_ADMIN" || user?.role === "MANAGER"
 
   return (

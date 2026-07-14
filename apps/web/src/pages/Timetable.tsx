@@ -3,7 +3,7 @@ import api from "../lib/api"
 import Layout from "../components/Layout"
 
 const HOURS = ['8:00','9:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00',]
-const DAYS  = ['Monday','Tuesday','Wednesday','Thursday','Friday']
+const DAYS  = ['Monday','Tuesday','Wednesday','Thursday','Friday', 'Saturday']
 
 const THERAPY_COLORS: Record<string,string> = {
   OT:'#3b82f6', SPEECH:'#22c55e', ABA:'#a855f7',
@@ -26,7 +26,8 @@ type Appointment  = {
 type BlockedSlot  = { day: number; hour: number; type: 'LUNCH'|'ADMIN'|'BREAK'; label: string }
 
 const DEFAULT_BLOCKED: BlockedSlot[] = [
-  ...([1,2,3,4,5].map(day => ({ day, hour: 13, type: 'LUNCH' as const, label: 'Lunch Break' }))),
+  ...([1,2,3,4,5].map(day => ({ day, hour: 13, type: 'LUNCH'  as const, label: 'Lunch Break' }))),
+  ...([1,2,3,4,5].map(day => ({ day, hour: 10, type: 'BREAK'  as const, label: 'Tea Break'   }))),
 ]
 
 export default function Timetable() {

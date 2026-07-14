@@ -21,6 +21,20 @@ export default function Staff() {
   const [isTrainee, setIsTrainee]     = useState(false)
   const [institution, setInstitution] = useState("")
 
+  const [editMember, setEditMember]         = useState<any>(null)
+const [showEditForm, setShowEditForm]     = useState(false)
+const [showResetPwd, setShowResetPwd]     = useState(false)
+const [resetTarget, setResetTarget]       = useState<any>(null)
+const [newPassword, setNewPassword]       = useState("")
+const [savingEdit, setSavingEdit]         = useState(false)
+const [savingReset, setSavingReset]       = useState(false)
+const [editFullName, setEditFullName]     = useState("")
+const [editPhone, setEditPhone]           = useState("")
+const [editRole, setEditRole]             = useState("")
+const [editSpecialty, setEditSpecialty]   = useState("")
+const [editIsTrainee, setEditIsTrainee]   = useState(false)
+const [editInstitution, setEditInstitution] = useState("")
+
   useEffect(() => { loadData() }, [])
 
   // Close menu when clicking outside
@@ -78,6 +92,51 @@ export default function Staff() {
       alert(err.response?.data?.message ?? "Failed to delete staff member")
     } finally { setDeletingStaff(false) }
   }
+
+  function openEdit(member: any) {
+  setEditMember(member)
+  setEditFullName(member.fullName)
+  setEditPhone(member.phone ?? "")
+  setEditRole(member.role)
+  setEditSpecialty(member.specialty ?? "OT")
+  setEditIsTrainee(member.isTrainee ?? false)
+  setEditInstitution(member.institution ?? "")
+  setShowEditForm(true)
+  setOpenMenuId(null)
+}
+
+async function saveEdit(e: React.FormEvent) {
+  e.preventDefault()
+  setSavingEdit(true)
+  try {
+    await api.put(`/staff/${editMember.id}`, {
+      fullName:    editFullName,
+      phone:       editPhone,
+      role:        editRole,
+      specialty:   editSpecialty || null,
+      isTrainee:   editIsTrainee,
+      institution: editIsTrainee ? editInstitution : null,
+    })
+    setShowEditForm(false)
+    loadData()
+  } catch (err: any) {
+    alert(err.response?.data?.message ?? "Failed to update staff member")
+  } finally { setSavingEdit(false) }
+}
+
+async function resetPassword(e: React.FormEvent) {
+  e.preventDefault()
+  if (newPassword.length < 8) { alert("Password must be at least 8 characters"); return }
+  setSavingReset(true)
+  try {
+    await api.post(`/staff/${resetTarget.id}/reset-password`, { newPassword })
+    alert(`Password reset successfully for ${resetTarget.fullName}. They will be asked to set a new password on next login.`)
+    setShowResetPwd(false)
+    setNewPassword("")
+  } catch (err: any) {
+    alert(err.response?.data?.message ?? "Failed to reset password")
+  } finally { setSavingReset(false) }
+}
 
   const roleColors: Record<string, string> = {
     SUPER_ADMIN: "#7c3aed", MANAGER: "#2563a8", THERAPIST: "#1a8c6e",
@@ -221,6 +280,18 @@ export default function Staff() {
           </button>
           <div style={{ height: 1, background: "#f0f4f2" }} />
           <button
+            onClick={() => openEdit(selectedMember)}
+            style={{ display:"block", width:"100%", padding:"10px 14px", border:"none", background:"none", textAlign:"left", fontSize:13, color:"#4a6359", cursor:"pointer" }}
+          >
+          ✏️ Edit Details
+          </button>
+          <button
+          onClick={() => { setResetTarget(selectedMember); setShowResetPwd(true); setOpenMenuId(null) }}
+          style={{ display:"block", width:"100%", padding:"10px 14px", border:"none", background:"none", textAlign:"left", fontSize:13, color:"#2563a8", cursor:"pointer", borderTop:"1px solid #f0f4f2" }}
+          >
+          🔑 Reset Password
+          </button>
+          <button
             onClick={() => { setConfirmDeleteStaff(selectedMember); setOpenMenuId(null) }}
             style={{ display: "block", width: "100%", padding: "12px 16px", border: "none", background: "none", textAlign: "left", fontSize: 13, color: "#d63f5c", cursor: "pointer" }}
           >
@@ -323,6 +394,97 @@ export default function Staff() {
           </div>
         </div>
       )}
+      {/* Edit Staff modal */}
+{showEditForm && editMember && (
+  <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:100 }}>
+    <div style={{ background:"white", borderRadius:16, padding:28, width:480 }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+        <h2 style={{ fontSize:16, fontWeight:600, color:"#1a2724", margin:0 }}>Edit Staff — {editMember.fullName}</h2>
+        <button onClick={() => setShowEditForm(false)} style={{ border:"none", background:"none", fontSize:20, cursor:"pointer", color:"#8aab9e" }}>×</button>
+      </div>
+      <form onSubmit={saveEdit}>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:16 }}>
+          <div style={{ gridColumn:"span 2" }}>
+            <label style={{ fontSize:12, color:"#4a6359", display:"block", marginBottom:4 }}>Full name</label>
+            <input required value={editFullName} onChange={e=>setEditFullName(e.target.value)} style={{ width:"100%", padding:"8px 12px", borderRadius:8, border:"1px solid #d6e8e0", fontSize:13, boxSizing:"border-box" }} />
+          </div>
+          <div>
+            <label style={{ fontSize:12, color:"#4a6359", display:"block", marginBottom:4 }}>Phone</label>
+            <input value={editPhone} onChange={e=>setEditPhone(e.target.value)} placeholder="+254 7XX XXX XXX" style={{ width:"100%", padding:"8px 12px", borderRadius:8, border:"1px solid #d6e8e0", fontSize:13, boxSizing:"border-box" }} />
+          </div>
+          <div>
+            <label style={{ fontSize:12, color:"#4a6359", display:"block", marginBottom:4 }}>Role</label>
+            <select value={editRole} onChange={e=>setEditRole(e.target.value)} style={{ width:"100%", padding:"8px 12px", borderRadius:8, border:"1px solid #d6e8e0", fontSize:13, boxSizing:"border-box" }}>
+              <option value="THERAPIST">Therapist</option>
+              <option value="RECEPTIONIST">Receptionist</option>
+              <option value="FINANCE">Finance</option>
+              <option value="MANAGER">Manager</option>
+            </select>
+          </div>
+          {(editRole === "THERAPIST" || editIsTrainee) && (
+            <div>
+              <label style={{ fontSize:12, color:"#4a6359", display:"block", marginBottom:4 }}>Specialty</label>
+              <select value={editSpecialty} onChange={e=>setEditSpecialty(e.target.value)} style={{ width:"100%", padding:"8px 12px", borderRadius:8, border:"1px solid #d6e8e0", fontSize:13, boxSizing:"border-box" }}>
+                <option value="OT">Occupational Therapy</option>
+                <option value="SPEECH">Speech Therapy</option>
+                <option value="ABA">ABA</option>
+                <option value="SENSORY">Sensory</option>
+                <option value="PSYCH">Psychology</option>
+                <option value="PHYSIO">Physiotherapy</option>
+              </select>
+            </div>
+          )}
+        </div>
+        <div style={{ background:"#f8faf9", borderRadius:10, padding:"12px 14px", marginBottom:16 }}>
+          <label style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:"#1a2724", cursor:"pointer", marginBottom: editIsTrainee ? 10 : 0 }}>
+            <input type="checkbox" checked={editIsTrainee} onChange={e=>setEditIsTrainee(e.target.checked)} />
+            Volunteer or student on attachment
+          </label>
+          {editIsTrainee && (
+            <div>
+              <label style={{ fontSize:12, color:"#4a6359", display:"block", marginBottom:4 }}>Institution</label>
+              <input value={editInstitution} onChange={e=>setEditInstitution(e.target.value)} placeholder="e.g. KMTC Nyeri Campus" style={{ width:"100%", padding:"8px 12px", borderRadius:8, border:"1px solid #d6e8e0", fontSize:13, boxSizing:"border-box" }} />
+            </div>
+          )}
+        </div>
+        <div style={{ display:"flex", gap:10, justifyContent:"flex-end" }}>
+          <button type="button" onClick={() => setShowEditForm(false)} style={{ padding:"9px 16px", borderRadius:8, border:"1px solid #d6e8e0", background:"white", fontSize:13, cursor:"pointer", color:"#4a6359" }}>Cancel</button>
+          <button type="submit" disabled={savingEdit} style={{ padding:"9px 16px", borderRadius:8, border:"none", background:"#1a8c6e", color:"white", fontSize:13, fontWeight:500, cursor:"pointer", opacity:savingEdit?0.7:1 }}>{savingEdit?"Saving...":"Save Changes"}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
+
+{/* Reset Password modal */}
+{showResetPwd && resetTarget && (
+  <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:100 }}>
+    <div style={{ background:"white", borderRadius:16, padding:28, width:420 }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+        <h2 style={{ fontSize:16, fontWeight:600, color:"#1a2724", margin:0 }}>Reset Password</h2>
+        <button onClick={() => setShowResetPwd(false)} style={{ border:"none", background:"none", fontSize:20, cursor:"pointer", color:"#8aab9e" }}>×</button>
+      </div>
+      <div style={{ background:"#f8faf9", borderRadius:10, padding:"10px 14px", marginBottom:16, fontSize:13, color:"#4a6359" }}>
+        Setting a new password for <strong>{resetTarget.fullName}</strong>. They will be required to change it on their next login.
+      </div>
+      <form onSubmit={resetPassword}>
+        <div style={{ marginBottom:16 }}>
+          <label style={{ fontSize:12, color:"#4a6359", display:"block", marginBottom:4 }}>New temporary password</label>
+          <input
+            required type="password" value={newPassword}
+            onChange={e=>setNewPassword(e.target.value)}
+            placeholder="Min 8 characters"
+            style={{ width:"100%", padding:"9px 12px", borderRadius:8, border:"1px solid #d6e8e0", fontSize:13, boxSizing:"border-box" }}
+          />
+        </div>
+        <div style={{ display:"flex", gap:10, justifyContent:"flex-end" }}>
+          <button type="button" onClick={() => setShowResetPwd(false)} style={{ padding:"9px 16px", borderRadius:8, border:"1px solid #d6e8e0", background:"white", fontSize:13, cursor:"pointer", color:"#4a6359" }}>Cancel</button>
+          <button type="submit" disabled={savingReset} style={{ padding:"9px 16px", borderRadius:8, border:"none", background:"#2563a8", color:"white", fontSize:13, fontWeight:500, cursor:"pointer", opacity:savingReset?0.7:1 }}>{savingReset?"Resetting...":"Reset Password"}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
     </Layout>
   )
 }

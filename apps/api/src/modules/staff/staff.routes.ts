@@ -92,4 +92,42 @@ export async function staffRoutes(fastify: FastifyInstance) {
     })
     return reply.send({ success: true })
   })
+
+  // ── Admin reset staff password ──
+  fastify.post("/staff/:id/reset-password", {
+    preHandler: requireRole("SUPER_ADMIN", "MANAGER")
+  }, async (request, reply) => {
+    const { id }          = request.params as { id: string }
+    const { newPassword } = request.body as { newPassword: string }
+    const pwHash          = await bcrypt.hash(newPassword, 12)
+    await prisma.staff.update({
+      where: { id },
+      data:  { pwHash, mustChangePassword: true } as any
+    })
+    return reply.send({ success: true })
+  })
+
+  // ── Admin edit staff details ──
+  fastify.put("/staff/:id", {
+    preHandler: requireRole("SUPER_ADMIN", "MANAGER")
+  }, async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const body   = request.body as any
+    const data: any = {}
+    if (body.fullName)                    data.fullName    = body.fullName
+    if (body.phone !== undefined)         data.phone       = body.phone
+    if (body.role)                        data.role        = body.role
+    if (body.specialty !== undefined)     data.specialty   = body.specialty
+    if (typeof body.isTrainee === "boolean") data.isTrainee = body.isTrainee
+    if (body.institution !== undefined)   data.institution = body.institution
+    const staff = await prisma.staff.update({
+      where: { id },
+      data,
+      select: {
+        id:true, fullName:true, email:true, role:true, specialty:true,
+        phone:true, isActive:true, isTrainee:true, institution:true,
+      }
+    })
+    return reply.send(staff)
+  })
 }
