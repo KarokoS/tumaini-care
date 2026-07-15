@@ -14,10 +14,16 @@ export async function authRoutes(fastify: FastifyInstance) {
     const body = loginSchema.safeParse(request.body)
     if (!body.success) return reply.status(422).send({ error: 'Validation failed', details: body.error.errors })
     const staff = await loginStaff(body.data.email, body.data.password)
-    const accessToken  = fastify.jwt.sign(
-      { id: staff.id, email: staff.email, role: staff.role, branchId: staff.branchId },
-      { expiresIn: '8h' }
-    )
+    const accessToken = fastify.jwt.sign(
+  {
+    id:                staff.id,
+    email:             staff.email,
+    role:              staff.role,
+    branchId:          staff.branchId,
+    mustChangePassword: staff.mustChangePassword,
+  },
+  { expiresIn: '8h' }
+)
     const refreshToken = fastify.jwt.sign(
       { id: staff.id, type: 'refresh' },
       { expiresIn: '30d' }
@@ -34,7 +40,13 @@ export async function authRoutes(fastify: FastifyInstance) {
       const staff = await getStaffById(decoded.id)
       if (!staff) return reply.status(401).send({ error: 'User not found' })
       const accessToken = fastify.jwt.sign(
-        { id: staff.id, email: staff.email, role: staff.role, branchId: staff.branchId },
+        {
+          id:                staff.id,
+          email:             staff.email,
+          role:              staff.role,
+          branchId:          staff.branchId,
+          mustChangePassword: staff.mustChangePassword,
+        },
         { expiresIn: '8h' }
       )
       return reply.send({ accessToken, user: staff })

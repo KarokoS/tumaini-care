@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import api from "../lib/api"
 import Layout from "../components/Layout"
+import { useAuthStore } from "../stores/auth.store"
 
 const HOURS = ['8:00','9:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00',]
 const DAYS  = ['Monday','Tuesday','Wednesday','Thursday','Friday', 'Saturday']
@@ -24,6 +25,8 @@ type Appointment  = {
   therapist?: { id: string; fullName: string } | null
 }
 type BlockedSlot  = { day: number; hour: number; type: 'LUNCH'|'ADMIN'|'BREAK'; label: string }
+type StaffApiResponse = { data: StaffMember[] }
+type AppointmentApiResponse = { data: Appointment[] }
 
 const DEFAULT_BLOCKED: BlockedSlot[] = [
   ...([1,2,3,4,5].map(day => ({ day, hour: 13, type: 'LUNCH'  as const, label: 'Lunch Break' }))),
@@ -45,20 +48,36 @@ export default function Timetable() {
   const [blockHour,    setBlockHour]    = useState(13)
   const [blockType,    setBlockType]    = useState<'LUNCH'|'ADMIN'|'BREAK'>('ADMIN')
   const [blockLabel,   setBlockLabel]   = useState('')
+  const { user }   = useAuthStore()
+  const isTherapist = user?.role === "THERAPIST"
 
-  useEffect(() => { loadData() }, [])
+  useEffect(() => {
+    const loadData = async () => {
+      const [staffData, appointmentData] = await Promise.all([
+        api.get<StaffApiResponse>('/staff')
+          .then(res => res.data)
+          .catch(() => [] as StaffMember[]) as Promise<StaffMember[]>,
+        api.get<AppointmentApiResponse>('/appointments')
+          .then(res => res.data)
+          .catch(() => [] as Appointment[]) as Promise<Appointment[]>,
+      ])
 
-  function loadData() {
-    Promise.all([
-      api.get('/staff').catch(() => ({ data: [] })),
-      api.get('/appointments').catch(() => ({ data: [] })),
-    ]).then(([s, a]: any) => {
-      const therapists = s.data.filter((m: StaffMember) => m.role === 'THERAPIST')
+      const therapists = staffData.filter((m) => m.role === 'THERAPIST')
       setStaff(therapists)
-      if (therapists.length > 0) setSelectedStaff(therapists[0].id)
-      setAppointments(a.data)
-    }).finally(() => setLoading(false))
-  }
+
+      if (isTherapist && user?.id) {
+        const self = therapists.find((t) => t.id === user.id)
+        setSelectedStaff(self?.id ?? therapists[0]?.id ?? '')
+      } else {
+        setSelectedStaff(therapists[0]?.id ?? '')
+      }
+
+      setAppointments(appointmentData)
+      setLoading(false)
+    }
+
+    loadData()
+  }, [isTherapist, user?.id])
 
   // ── Week helpers ──
   function getWeekDates(): Date[] {
@@ -108,7 +127,6 @@ export default function Timetable() {
       return matchDate && matchTherapist
     })
   }
-
   function addBlockedSlot(e: React.FormEvent) {
     e.preventDefault()
     setBlockedSlots(prev => [...prev, { day: blockDay, hour: blockHour, type: blockType, label: blockLabel || (blockType === 'LUNCH' ? 'Lunch Break' : blockType === 'ADMIN' ? 'Admin Time' : 'Break') }])
@@ -189,6 +207,17 @@ export default function Timetable() {
           </div>
         )}
       </div>
+      {/* View toggle — hidden for therapists */}
+{!isTherapist && (
+  <div style={{ display:"flex", gap:4, background:"#f0f4f2", borderRadius:8, padding:4 }}>
+    {([['single','👤 Single Therapist'],['all','👥 All Therapists']] as const).map(([v, label]) => (
+      <button key={v} onClick={() => setView(v)}
+        style={{ padding:"6px 14px", borderRadius:6, border:"none", background:view===v?"white":"transparent", color:view===v?"#1a8c6e":"#4a6359", fontSize:12.5, fontWeight:view===v?600:400, cursor:"pointer", boxShadow:view===v?"0 1px 4px rgba(0,0,0,0.1)":undefined }}>
+        {label}
+      </button>
+    ))}
+  </div>
+)}
 
       {/* Stats bar — single view only */}
       {view === 'single' && selectedStaff && (
@@ -213,8 +242,20 @@ export default function Timetable() {
       {loading ? (
         <div style={{ textAlign:"center", padding:60, color:"#8aab9e" }}>Loading timetable...</div>
       ) : (
-
         <>
+          {view === 'single' && !isTherapist && (
+            <select value={selectedStaff} onChange={e => setSelectedStaff(e.target.value)}
+              style={{ padding:"8px 12px", borderRadius:8, border:"1px solid #d6e8e0", fontSize:13, color:"#1a2724", background:"white" }}>
+              {therapists.map(t => (
+                <option key={t.id} value={t.id}>{t.fullName}{t.specialty ? ` — ${t.specialty}` : ''}</option>
+              ))}
+            </select>
+          )}
+          {isTherapist && (
+            <div style={{ padding:"8px 14px", borderRadius:8, background:"#e6f4ef", fontSize:13, color:"#1a8c6e", fontWeight:500 }}>
+              👤 My Schedule Only
+            </div>
+          )}
           {/* ══ WEEK VIEW ══ */}
           {timeRange === 'week' && (
             <div style={{ background:"white", borderRadius:12, border:"1px solid #d6e8e0", overflow:"auto", marginBottom:14 }}>
@@ -414,7 +455,7 @@ export default function Timetable() {
                 </div>
                 <div>
                   <label style={{ fontSize:12, color:"#4a6359", display:"block", marginBottom:4 }}>Type</label>
-                  <select value={blockType} onChange={e=>setBlockType(e.target.value as any)}
+                  <select value={blockType} onChange={e=>setBlockType(e.target.value as 'LUNCH'|'ADMIN'|'BREAK')}
                     style={{ width:"100%", padding:"8px 12px", borderRadius:8, border:"1px solid #d6e8e0", fontSize:13, boxSizing:"border-box" as const }}>
                     <option value="LUNCH">Lunch Break</option>
                     <option value="ADMIN">Admin Time</option>

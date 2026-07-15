@@ -2,14 +2,39 @@ import { useEffect, useState } from "react"
 import api from "../lib/api"
 import Layout from "../components/Layout"
 
+type StaffMember = {
+  id: string
+  fullName: string
+  email?: string
+  role: string
+  specialty?: string | null
+  phone?: string
+  isTrainee?: boolean
+  institution?: string | null
+  isActive?: boolean
+}
+
+type ApiError = {
+  response?: {
+    data?: {
+      message?: string
+      error?: string
+    }
+  }
+}
+
+type StaffApiResponse = {
+  data: StaffMember[]
+}
+
 export default function Staff() {
-  const [staff, setStaff]                           = useState<any[]>([])
+  const [staff, setStaff]                           = useState<StaffMember[]>([])
   const [loading, setLoading]                       = useState(true)
   const [showForm, setShowForm]                     = useState(false)
   const [saving, setSaving]                         = useState(false)
   const [filter, setFilter]                         = useState("ALL")
   const [openMenuId, setOpenMenuId]                 = useState<string | null>(null)
-  const [confirmDeleteStaff, setConfirmDeleteStaff] = useState<any>(null)
+  const [confirmDeleteStaff, setConfirmDeleteStaff] = useState<StaffMember | null>(null)
   const [deletingStaff, setDeletingStaff]           = useState(false)
 
   const [fullName, setFullName]       = useState("")
@@ -21,10 +46,10 @@ export default function Staff() {
   const [isTrainee, setIsTrainee]     = useState(false)
   const [institution, setInstitution] = useState("")
 
-  const [editMember, setEditMember]         = useState<any>(null)
+  const [editMember, setEditMember]         = useState<StaffMember | null>(null)
 const [showEditForm, setShowEditForm]     = useState(false)
 const [showResetPwd, setShowResetPwd]     = useState(false)
-const [resetTarget, setResetTarget]       = useState<any>(null)
+const [resetTarget, setResetTarget]       = useState<StaffMember | null>(null)
 const [newPassword, setNewPassword]       = useState("")
 const [savingEdit, setSavingEdit]         = useState(false)
 const [savingReset, setSavingReset]       = useState(false)
@@ -48,8 +73,9 @@ const [editInstitution, setEditInstitution] = useState("")
   }, [openMenuId])
 
   function loadData() {
-    api.get("/staff").catch(() => ({ data: [] }))
-      .then((r: any) => setStaff(r.data))
+    api.get<StaffApiResponse>("/staff")
+      .catch(() => ({ data: [] as StaffMember[] }))
+      .then((r: StaffApiResponse) => setStaff(r.data))
       .finally(() => setLoading(false))
   }
 
@@ -67,33 +93,36 @@ const [editInstitution, setEditInstitution] = useState("")
       setFullName(""); setEmail(""); setRole("THERAPIST"); setSpecialty("OT")
       setPhone(""); setPassword(""); setIsTrainee(false); setInstitution("")
       loadData()
-    } catch (err: any) {
-      alert(err.response?.data?.message ?? "Failed to save staff member")
+    } catch (err: unknown) {
+      const error = err as ApiError
+      alert(error.response?.data?.message ?? "Failed to save staff member")
     } finally { setSaving(false) }
   }
 
-  async function toggleActive(member: any) {
+  async function toggleActive(member: StaffMember) {
     try {
       await api.patch(`/staff/${member.id}`, { isActive: !member.isActive })
       setOpenMenuId(null)
       loadData()
-    } catch (err: any) {
-      alert(err.response?.data?.message ?? "Failed to update staff status")
+    } catch (err: unknown) {
+      const error = err as ApiError
+      alert(error.response?.data?.message ?? "Failed to update staff status")
     }
   }
 
-  async function deleteStaff(member: any) {
+  async function deleteStaff(member: StaffMember) {
     setDeletingStaff(true)
     try {
       await api.delete(`/staff/${member.id}`)
       setConfirmDeleteStaff(null)
       loadData()
-    } catch (err: any) {
-      alert(err.response?.data?.message ?? "Failed to delete staff member")
+    } catch (err: unknown) {
+      const error = err as ApiError
+      alert(error.response?.data?.message ?? "Failed to delete staff member")
     } finally { setDeletingStaff(false) }
   }
 
-  function openEdit(member: any) {
+  function openEdit(member: StaffMember) {
   setEditMember(member)
   setEditFullName(member.fullName)
   setEditPhone(member.phone ?? "")
@@ -119,8 +148,9 @@ async function saveEdit(e: React.FormEvent) {
     })
     setShowEditForm(false)
     loadData()
-  } catch (err: any) {
-    alert(err.response?.data?.message ?? "Failed to update staff member")
+  } catch (err: unknown) {
+    const error = err as ApiError
+    alert(error.response?.data?.message ?? "Failed to update staff member")
   } finally { setSavingEdit(false) }
 }
 
@@ -133,8 +163,9 @@ async function resetPassword(e: React.FormEvent) {
     alert(`Password reset successfully for ${resetTarget.fullName}. They will be asked to set a new password on next login.`)
     setShowResetPwd(false)
     setNewPassword("")
-  } catch (err: any) {
-    alert(err.response?.data?.message ?? "Failed to reset password")
+  } catch (err: unknown) {
+    const error = err as ApiError
+    alert(error.response?.data?.message ?? "Failed to reset password")
   } finally { setSavingReset(false) }
 }
 

@@ -81,7 +81,6 @@ export default function Layout({ title, children, action }: LayoutProps) {
   const navigate = useNavigate()
 
   useEffect(() => { initialize() }, [initialize])
-  useEffect(() => { setSidebarOpen(false) }, [title])
   useEffect(() => {
     document.body.style.overflow = sidebarOpen ? "hidden" : ""
     return () => { document.body.style.overflow = "" }
@@ -89,6 +88,11 @@ export default function Layout({ title, children, action }: LayoutProps) {
 
   const navSections      = getNavSections(user?.role ?? "")
   const isAdminOrManager = user?.role === "SUPER_ADMIN" || user?.role === "MANAGER"
+
+  function goTo(path: string) {
+    setSidebarOpen(false)
+    navigate(path)
+  }
 
   return (
     <div className={styles.container}>
@@ -160,7 +164,7 @@ export default function Layout({ title, children, action }: LayoutProps) {
               onKeyDown={e => {
                 if (e.key === "Enter") {
                   const val = (e.target as HTMLInputElement).value.trim()
-                  if (val) navigate(`/clients?q=${encodeURIComponent(val)}`)
+                  if (val) goTo(`/clients?q=${encodeURIComponent(val)}`)
                 }
               }}
               style={{ padding:"7px 14px 7px 32px", borderRadius:10, border:"1px solid #d6e8e0", fontSize:13, color:"#4a6359", width:220, outline:"none", background:"#f0f4f2" }}
@@ -169,11 +173,11 @@ export default function Layout({ title, children, action }: LayoutProps) {
           </div>
 
           <div className={styles.headerActions}>
-            <div className={styles.iconBtn} title="Change Password" onClick={() => navigate("/change-password")} style={{ cursor:"pointer" }}>🔑</div>
-            <div className={styles.iconBtn} title="Notifications" onClick={() => navigate("/reports")} style={{ cursor:"pointer", position:"relative" }}>
+            <div className={styles.iconBtn} title="Change Password" onClick={() => goTo("/change-password")} style={{ cursor:"pointer" }}>🔑</div>
+            <div className={styles.iconBtn} title="Notifications" onClick={() => goTo("/reports")} style={{ cursor:"pointer", position:"relative" }}>
               🔔<span className={styles.notificationDot} />
             </div>
-            <div className={styles.iconBtn} title="Settings" onClick={() => navigate(isAdminOrManager ? "/staff" : "/dashboard")} style={{ cursor:"pointer" }}>⚙️</div>
+            <div className={styles.iconBtn} title="Settings" onClick={() => goTo(isAdminOrManager ? "/staff" : "/dashboard")} style={{ cursor:"pointer" }}>⚙️</div>
           </div>
 
           {action && <div style={{ marginLeft:8 }}>{action}</div>}
