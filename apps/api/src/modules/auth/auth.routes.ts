@@ -123,7 +123,7 @@ export async function authRoutes(fastify: FastifyInstance) {
     try {
       await sendPasswordResetEmail(staff.email, staff.fullName, token)
     } catch (err) {
-      fastify.log.error('Failed to send reset email:', err)
+      fastify.log.error({ err }, 'Failed to send reset email')
     }
 
     return reply.send({ message: 'If that email exists, a reset link has been sent.' })

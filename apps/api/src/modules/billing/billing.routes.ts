@@ -28,8 +28,14 @@ export async function billingRoutes(fastify: FastifyInstance) {
     const total = body.lineItems.reduce((sum: number, item: any) => {
       return sum + (item.quantity * item.unitPrice)
     }, 0)
-    const count  = await prisma.invoice.count()
-    const number = "INV-" + String(1001 + count).padStart(4, "0")
+    const lastInvoice = await prisma.invoice.findFirst({
+  orderBy: { createdAt: 'desc' },
+  select: { number: true }
+})
+    const lastNum = lastInvoice?.number
+      ? parseInt(lastInvoice.number.replace('INV-', '')) 
+      : 1000
+    const number = "INV-" + String(lastNum + 1).padStart(4, "0")
 
     const invoice = await prisma.invoice.create({
       data: {
