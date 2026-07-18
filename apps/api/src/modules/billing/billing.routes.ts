@@ -104,4 +104,36 @@ export async function billingRoutes(fastify: FastifyInstance) {
     await prisma.invoice.delete({ where: { id } })
     return reply.send({ success: true })
   })
+
+  // ── Edit invoice ──
+  fastify.put("/invoices/:id", {
+    preHandler: requireRole("SUPER_ADMIN","MANAGER","FINANCE","RECEPTIONIST")
+  }, async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const body   = request.body as any
+
+    const data: any = {}
+    if (body.notes !== undefined)   data.notes   = body.notes
+    if (body.dueDate !== undefined) data.dueDate = body.dueDate ? new Date(body.dueDate) : null
+    if (body.amountKes !== undefined) data.amountKes = body.amountKes
+
+    // Update line items if provided
+    if (body.lineItems && Array.isArray(body.lineItems)) {
+      await prisma.invoiceItem.deleteMany({ where: { invoiceId: id } })
+      await prisma.invoiceItem.createMany({
+        data: body.lineItems.map((item: any) => ({
+          invoiceId:   id,
+          description: item.description,
+          quantity:    item.quantity,
+          unitPrice:   item.unitPrice,
+        }))
+      })
+      // Recalculate total
+      data.amountKes = body.lineItems.reduce((s: number, i: any) =>
+        s + (i.quantity * i.unitPrice), 0)
+    }
+
+    const invoice = await prisma.invoice.update({ where: { id }, data })
+    return reply.send(invoice)
+  })
 }

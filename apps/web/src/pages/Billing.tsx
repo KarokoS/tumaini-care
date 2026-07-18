@@ -25,6 +25,12 @@ export default function Billing() {
   const [filterStatus, setFilterStatus]             = useState("ALL")
   const [confirmDeleteInvoice, setConfirmDeleteInvoice] = useState<any>(null)
   const [deletingInvoice, setDeletingInvoice]       = useState(false)
+  const [editInvoice, setEditInvoice]   = useState<any>(null)
+  const [showEditInv, setShowEditInv]   = useState(false)
+  const [savingEditInv, setSavingEditInv] = useState(false)
+  const [editInvNotes, setEditInvNotes] = useState("")
+  const [editInvDue, setEditInvDue]     = useState("")
+  const [editInvItems, setEditInvItems] = useState<any[]>([])
 
   useEffect(() => { loadData() }, [])
 
@@ -49,6 +55,38 @@ export default function Billing() {
       setItems([{ description: "", quantity: "1", unitPrice: "" }])
     }
   }
+
+  function openEditInvoice(inv: any) {
+  setEditInvoice(inv)
+  setEditInvNotes(inv.notes ?? "")
+  setEditInvDue(inv.dueDate ? inv.dueDate.split("T")[0] : "")
+  setEditInvItems(inv.lineItems?.map((li: any) => ({
+    description: li.description,
+    quantity:    String(li.quantity),
+    unitPrice:   String(li.unitPrice),
+  })) ?? [])
+  setShowEditInv(true)
+}
+
+async function saveEditInvoice(e: React.FormEvent) {
+  e.preventDefault()
+  setSavingEditInv(true)
+  try {
+    await api.put(`/invoices/${editInvoice.id}`, {
+      notes:     editInvNotes,
+      dueDate:   editInvDue || null,
+      lineItems: editInvItems.map(item => ({
+        description: item.description,
+        quantity:    parseInt(item.quantity) || 1,
+        unitPrice:   parseFloat(item.unitPrice) || 0,
+      }))
+    })
+    setShowEditInv(false)
+    loadData()
+  } catch (err: any) {
+    alert(err.response?.data?.message ?? "Failed to update invoice")
+  } finally { setSavingEditInv(false) }
+}
 
   function addItem() { setItems(p => [...p, { description: "", quantity: "1", unitPrice: "" }]) }
   function updateItem(i: number, f: string, v: string) { setItems(p => p.map((item, idx) => idx === i ? { ...item, [f]: v } : item)) }
@@ -265,6 +303,14 @@ export default function Billing() {
                           🗑
                         </button>
                       )}
+                      {inv.status !== "PAID" && !isProBono && (
+                        <button
+                          onClick={() => openEditInvoice(inv)}
+                          style={{ fontSize:12, color:"#2563a8", border:"1px solid #d6e8e0", background:"white", cursor:"pointer", padding:"4px 10px", borderRadius:6 }}
+                        >
+                          ✏️ Edit
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -463,6 +509,57 @@ export default function Billing() {
           </div>
         </div>
       )}
+
+      {showEditInv && editInvoice && (
+  <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:100 }}>
+    <div style={{ background:"white", borderRadius:16, padding:28, width:540, maxHeight:"90vh", overflowY:"auto" }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+        <h2 style={{ fontSize:16, fontWeight:600, color:"#1a2724", margin:0 }}>Edit Invoice {editInvoice.number}</h2>
+        <button onClick={() => setShowEditInv(false)} style={{ border:"none", background:"none", fontSize:20, cursor:"pointer", color:"#8aab9e" }}>×</button>
+      </div>
+      <form onSubmit={saveEditInvoice}>
+        <div style={{ marginBottom:14 }}>
+          <label style={{ fontSize:12, color:"#4a6359", display:"block", marginBottom:4 }}>Due date</label>
+          <input type="date" value={editInvDue} onChange={e=>setEditInvDue(e.target.value)}
+            style={{ width:"100%", padding:"8px 12px", borderRadius:8, border:"1px solid #d6e8e0", fontSize:13, boxSizing:"border-box" }} />
+        </div>
+        <div style={{ marginBottom:14 }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+            <label style={{ fontSize:12, color:"#4a6359", fontWeight:500 }}>Line items</label>
+            <button type="button" onClick={() => setEditInvItems(p=>[...p,{description:"",quantity:"1",unitPrice:""}])}
+              style={{ fontSize:12, color:"#1a8c6e", border:"none", background:"none", cursor:"pointer", fontWeight:500 }}>+ Add item</button>
+          </div>
+          {editInvItems.map((item,i) => (
+            <div key={i} style={{ display:"grid", gridTemplateColumns:"1fr 80px 100px 32px", gap:8, marginBottom:8 }}>
+              <input value={item.description} onChange={e=>setEditInvItems(p=>p.map((it,idx)=>idx===i?{...it,description:e.target.value}:it))}
+                placeholder="Description" style={{ padding:"8px 12px", borderRadius:8, border:"1px solid #d6e8e0", fontSize:13 }} />
+              <input type="number" value={item.quantity} onChange={e=>setEditInvItems(p=>p.map((it,idx)=>idx===i?{...it,quantity:e.target.value}:it))}
+                placeholder="Qty" style={{ padding:"8px 12px", borderRadius:8, border:"1px solid #d6e8e0", fontSize:13 }} />
+              <input type="number" value={item.unitPrice} onChange={e=>setEditInvItems(p=>p.map((it,idx)=>idx===i?{...it,unitPrice:e.target.value}:it))}
+                placeholder="KSh" style={{ padding:"8px 12px", borderRadius:8, border:"1px solid #d6e8e0", fontSize:13 }} />
+              <button type="button" onClick={() => setEditInvItems(p=>p.filter((_,idx)=>idx!==i))}
+                style={{ border:"none", background:"#fde8ed", color:"#d63f5c", borderRadius:8, cursor:"pointer" }}>×</button>
+            </div>
+          ))}
+          <div style={{ textAlign:"right", fontSize:14, fontWeight:600, color:"#1a2724", marginTop:8 }}>
+            Total: KSh {editInvItems.reduce((s,i)=>(s+(parseInt(i.quantity)||0)*(parseFloat(i.unitPrice)||0)),0).toLocaleString()}
+          </div>
+        </div>
+        <div style={{ marginBottom:16 }}>
+          <label style={{ fontSize:12, color:"#4a6359", display:"block", marginBottom:4 }}>Notes</label>
+          <textarea value={editInvNotes} onChange={e=>setEditInvNotes(e.target.value)} rows={2}
+            style={{ width:"100%", padding:"8px 12px", borderRadius:8, border:"1px solid #d6e8e0", fontSize:13, boxSizing:"border-box", resize:"vertical" }} />
+        </div>
+        <div style={{ display:"flex", gap:10, justifyContent:"flex-end" }}>
+          <button type="button" onClick={() => setShowEditInv(false)} style={{ padding:"9px 16px", borderRadius:8, border:"1px solid #d6e8e0", background:"white", fontSize:13, cursor:"pointer", color:"#4a6359" }}>Cancel</button>
+          <button type="submit" disabled={savingEditInv} style={{ padding:"9px 16px", borderRadius:8, border:"none", background:"#1a8c6e", color:"white", fontSize:13, fontWeight:500, cursor:"pointer", opacity:savingEditInv?0.7:1 }}>
+            {savingEditInv?"Saving...":"Save Changes"}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
     </Layout>
   )
 }

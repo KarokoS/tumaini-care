@@ -312,6 +312,20 @@ export default function Schedule() {
             </div>
           )}
         </div>
+
+        {/* Write notes shortcut */}
+        <div style={{ marginTop:10 }}>
+  
+        href={`/sessions`}
+        onClick={() => {
+        sessionStorage.setItem('openNoteForAppt', JSON.stringify(selectedAppt))
+        setSelectedAppt(null)
+        }}
+        style={{ display:"block", padding:"8px 14px", borderRadius:8, border:"none", background:"#7c3aed", color:"white", fontSize:12.5, fontWeight:500, cursor:"pointer", textAlign:"center", textDecoration:"none" }}
+        >
+        ✏️ Write Session Note
+        </a>
+        </div>
       )}
 
       {/* Book/Edit modal */}

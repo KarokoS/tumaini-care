@@ -109,17 +109,30 @@ export async function staffRoutes(fastify: FastifyInstance) {
 
   // ── Admin edit staff details ──
   fastify.put("/staff/:id", {
-    preHandler: requireRole("SUPER_ADMIN", "MANAGER")
+    preHandler: requireRole("SUPER_ADMIN","MANAGER")
   }, async (request, reply) => {
     const { id } = request.params as { id: string }
     const body   = request.body as any
     const data: any = {}
-    if (body.fullName)                    data.fullName    = body.fullName
-    if (body.phone !== undefined)         data.phone       = body.phone
-    if (body.role)                        data.role        = body.role
-    if (body.specialty !== undefined)     data.specialty   = body.specialty
-    if (typeof body.isTrainee === "boolean") data.isTrainee = body.isTrainee
-    if (body.institution !== undefined)   data.institution = body.institution
+
+    if (body.fullName)                       data.fullName    = body.fullName
+    if (body.phone !== undefined)            data.phone       = body.phone
+    if (body.role)                           data.role        = body.role
+    if (body.specialty !== undefined)        data.specialty   = body.specialty
+    if (typeof body.isTrainee === "boolean") data.isTrainee   = body.isTrainee
+    if (body.institution !== undefined)      data.institution = body.institution
+
+    // Allow email update with duplicate check
+    if (body.email && body.email !== '') {
+      const existing = await prisma.staff.findFirst({
+        where: { email: body.email.toLowerCase().trim(), NOT: { id } }
+      })
+      if (existing) {
+        return reply.status(400).send({ message: 'Email already in use by another staff member' })
+      }
+      data.email = body.email.toLowerCase().trim()
+    }
+
     const staff = await prisma.staff.update({
       where: { id },
       data,

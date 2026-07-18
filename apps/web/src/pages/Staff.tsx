@@ -47,18 +47,19 @@ export default function Staff() {
   const [institution, setInstitution] = useState("")
 
   const [editMember, setEditMember]         = useState<StaffMember | null>(null)
-const [showEditForm, setShowEditForm]     = useState(false)
-const [showResetPwd, setShowResetPwd]     = useState(false)
-const [resetTarget, setResetTarget]       = useState<StaffMember | null>(null)
-const [newPassword, setNewPassword]       = useState("")
-const [savingEdit, setSavingEdit]         = useState(false)
-const [savingReset, setSavingReset]       = useState(false)
-const [editFullName, setEditFullName]     = useState("")
-const [editPhone, setEditPhone]           = useState("")
-const [editRole, setEditRole]             = useState("")
-const [editSpecialty, setEditSpecialty]   = useState("")
-const [editIsTrainee, setEditIsTrainee]   = useState(false)
-const [editInstitution, setEditInstitution] = useState("")
+  const [showEditForm, setShowEditForm]     = useState(false)
+  const [showResetPwd, setShowResetPwd]     = useState(false)
+  const [resetTarget, setResetTarget]       = useState<StaffMember | null>(null)
+  const [newPassword, setNewPassword]       = useState("")
+  const [savingEdit, setSavingEdit]         = useState(false)
+  const [savingReset, setSavingReset]       = useState(false)
+  const [editFullName, setEditFullName]     = useState("")
+  const [editPhone, setEditPhone]           = useState("")
+  const [editRole, setEditRole]             = useState("")
+  const [editSpecialty, setEditSpecialty]   = useState("")
+  const [editIsTrainee, setEditIsTrainee]   = useState(false)
+  const [editInstitution, setEditInstitution] = useState("")
+  const [editEmail, setEditEmail] = useState("")
 
   useEffect(() => { loadData() }, [])
 
@@ -130,6 +131,7 @@ const [editInstitution, setEditInstitution] = useState("")
   setEditSpecialty(member.specialty ?? "OT")
   setEditIsTrainee(member.isTrainee ?? false)
   setEditInstitution(member.institution ?? "")
+  setEditEmail(member.email ?? "")
   setShowEditForm(true)
   setOpenMenuId(null)
 }
@@ -139,13 +141,14 @@ async function saveEdit(e: React.FormEvent) {
   setSavingEdit(true)
   try {
     await api.put(`/staff/${editMember.id}`, {
-      fullName:    editFullName,
-      phone:       editPhone,
-      role:        editRole,
-      specialty:   editSpecialty || null,
-      isTrainee:   editIsTrainee,
-      institution: editIsTrainee ? editInstitution : null,
-    })
+  fullName:    editFullName,
+  email:       editEmail,
+  phone:       editPhone,
+  role:        editRole,
+  specialty:   editSpecialty || null,
+  isTrainee:   editIsTrainee,
+  institution: editIsTrainee ? editInstitution : null,
+})
     setShowEditForm(false)
     loadData()
   } catch (err: unknown) {
@@ -209,7 +212,7 @@ async function resetPassword(e: React.FormEvent) {
         {[
           { label: "Total Staff",           value: staff.length,                                                   color: "#1a8c6e" },
           { label: "Therapists",            value: staff.filter(s => s.role === "THERAPIST" && !s.isTrainee).length, color: "#2563a8" },
-          { label: "Volunteers / Students", value: staff.filter(s => s.isTrainee).length,                         color: "#d97706" },
+          { label: "Volunteers / Students", value: staff.filter(s=>s.isTrainee).length, color:"#d97706" },                    
           { label: "Active",                value: staff.filter(s => s.isActive).length,                          color: "#7c3aed" },
         ].map((s, i) => (
           <div key={i} style={{ background: "white", border: "1px solid #d6e8e0", borderRadius: 12, padding: "14px 18px" }}>
@@ -244,50 +247,25 @@ async function resetPassword(e: React.FormEvent) {
               <tr><td colSpan={6} style={{ padding: 32, textAlign: "center", color: "#8aab9e" }}>Loading...</td></tr>
             ) : filtered.length === 0 ? (
               <tr><td colSpan={6} style={{ padding: 32, textAlign: "center", color: "#8aab9e" }}>No staff members found</td></tr>
-            ) : filtered.map((member, i) => (
-              <tr key={i} style={{ borderBottom: "1px solid #f0f4f2" }}>
-                <td style={{ padding: "12px 16px" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={{ width: 32, height: 32, borderRadius: "50%", background: roleBg[member.role] || "#f0f4f2", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: roleColors[member.role] || "#8aab9e", flexShrink: 0 }}>
-                      {member.fullName.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
-                    </div>
-                    <div>
-                      <div style={{ fontWeight: 500, color: "#1a2724" }}>{member.fullName}</div>
-                      <div style={{ fontSize: 11.5, color: "#8aab9e" }}>{member.email}</div>
-                      {member.isTrainee && (
-                        <div style={{ fontSize: 10.5, color: "#d97706", marginTop: 2, fontWeight: 500 }}>
-                          🎓 {member.institution || "Volunteer / Student"}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </td>
-                <td style={{ padding: "12px 16px" }}>
-                  <span style={{ fontSize: 11.5, padding: "2px 8px", borderRadius: 20, background: roleBg[member.role] || "#f0f4f2", color: roleColors[member.role] || "#8aab9e", fontWeight: 500 }}>
-                    {roleLabel[member.role] || member.role}
-                  </span>
-                </td>
-                <td style={{ padding: "12px 16px", color: "#4a6359" }}>
-                  {member.specialty ? specialtyLabel[member.specialty] || member.specialty : "—"}
-                </td>
-                <td style={{ padding: "12px 16px", color: "#4a6359" }}>
-                  {member.phone || "—"}
-                </td>
-                <td style={{ padding: "12px 16px" }}>
-                  <span style={{ fontSize: 11.5, padding: "2px 8px", borderRadius: 20, background: member.isActive ? "#e6f4ef" : "#fde8ed", color: member.isActive ? "#1a8c6e" : "#d63f5c", fontWeight: 500 }}>
-                    {member.isActive ? "Active" : "Inactive"}
-                  </span>
-                </td>
-                <td style={{ padding: "12px 16px", textAlign: "right", position: "relative" }} data-menu="true">
-                  <button
-                    data-menu="true"
-                    onClick={e => { e.stopPropagation(); setOpenMenuId(openMenuId === member.id ? null : member.id) }}
-                    style={{ border: "none", background: openMenuId === member.id ? "#f0f4f2" : "none", cursor: "pointer", color: "#8aab9e", fontSize: 18, padding: "4px 8px", borderRadius: 6 }}
-                  >
-                    ⋮
-                  </button>
-                </td>
-              </tr>
+            ) : {(() => {
+  const regularStaff = filtered.filter(m => !m.isTrainee)
+  const trainees     = filtered.filter(m => m.isTrainee)
+  return (
+    <>
+      {regularStaff.map((member, i) => renderStaffRow(member, i))}
+      {trainees.length > 0 && regularStaff.length > 0 && (
+        <tr>
+          <td colSpan={6} style={{ padding:"8px 16px", background:"#fef3c7", borderBottom:"1px solid #d6e8e0" }}>
+            <span style={{ fontSize:11, fontWeight:600, color:"#d97706", textTransform:"uppercase", letterSpacing:"0.06em" }}>
+              🎓 Volunteers & Students on Attachment
+            </span>
+          </td>
+        </tr>
+      )}
+      {trainees.map((member, i) => renderStaffRow(member, i + regularStaff.length))}
+    </>
+  )
+})()}
             ))}
           </tbody>
         </table>
@@ -403,6 +381,11 @@ async function resetPassword(e: React.FormEvent) {
                 <button type="button" onClick={() => setShowForm(false)} style={{ padding: "9px 16px", borderRadius: 8, border: "1px solid #d6e8e0", background: "white", fontSize: 13, cursor: "pointer", color: "#4a6359" }}>Cancel</button>
                 <button type="submit" disabled={saving} style={{ padding: "9px 16px", borderRadius: 8, border: "none", background: "#1a8c6e", color: "white", fontSize: 13, fontWeight: 500, cursor: "pointer", opacity: saving ? 0.7 : 1 }}>{saving ? "Saving..." : "Add Staff"}</button>
               </div>
+              <div style={{ gridColumn:"span 2" }}>
+  <label style={{ fontSize:12, color:"#4a6359", display:"block", marginBottom:4 }}>Email</label>
+  <input type="email" value={editEmail} onChange={e=>setEditEmail(e.target.value)}
+    style={{ width:"100%", padding:"8px 12px", borderRadius:8, border:"1px solid #d6e8e0", fontSize:13, boxSizing:"border-box" }} />
+</div>
             </form>
           </div>
         </div>
