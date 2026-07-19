@@ -27,7 +27,7 @@ export async function appointmentRoutes(fastify: FastifyInstance) {
       include: {
         client:      { select: { id: true, fullName: true } },
         therapist:   { select: { id: true, fullName: true } },
-        sessionNote: { select: { id: true, isLocked: true } },
+        sessionNote: { select: { id: true, isLocked: true, subjective: true, objective: true, assessment: true, plan: true } },
       },
       orderBy: { scheduledAt: 'asc' },
     })

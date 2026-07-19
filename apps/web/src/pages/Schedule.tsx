@@ -295,7 +295,7 @@ export default function Schedule() {
             <div><strong style={{ color:'#1a2724' }}>Status:</strong> <span style={{ color:STATUS_COLORS[selectedAppt.status]??'#8aab9e', fontWeight:600 }}>{selectedAppt.status}</span></div>
             {selectedAppt.notes && <div><strong style={{ color:'#1a2724' }}>Notes:</strong> {selectedAppt.notes}</div>}
           </div>
-          <a href="/sessions"
+          <a href={`/sessions?apptId=${selectedAppt.id}`}
   style={{ display:"block", marginTop:10, padding:"8px 14px", borderRadius:8, background:"#7c3aed", color:"white", fontSize:12.5, fontWeight:500, textDecoration:"none", textAlign:"center" }}>
   ✏️ Write Session Note
 </a>

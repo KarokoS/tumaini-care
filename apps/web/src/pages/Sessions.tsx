@@ -34,9 +34,28 @@ export default function Sessions() {
 
   useEffect(() => { loadData() }, [])
 
+  // Auto-open note form if apptId is in URL
+useEffect(() => {
+  const params  = new URLSearchParams(window.location.search)
+  const apptId  = params.get('apptId')
+  if (apptId && appointments.length > 0) {
+    const appt = appointments.find((a:any) => a.id === apptId)
+    if (appt) {
+      openNoteForm(appt)
+      // Clean URL without reload
+      window.history.replaceState({}, '', '/sessions')
+    }
+  }
+}, [appointments])
+
   function loadData() {
-    setLoading(true)
-    api.get("/appointments").catch(() => ({ data:[] }))
+  setLoading(true)
+  // Load last 90 days of appointments for performance
+  const from = new Date()
+  from.setDate(from.getDate() - 90)
+  const to = new Date()
+  to.setDate(to.getDate() + 30)
+  api.get(`/appointments?from=${from.toISOString()}&to=${to.toISOString()}`).catch(() => ({ data:[] }))
       .then((r:any) => {
         // Filter to therapist's own sessions if therapist role
         const appts = r.data.filter((a:any) =>
@@ -99,9 +118,13 @@ export default function Sessions() {
 
       // Auto-generate invoice at KSh 300
       if (generateInvoice && selectedAppt.status !== "COMPLETED") {
-        try {
-          await api.post("/invoices", {
-            clientId: selectedAppt.client?.id ?? selectedAppt.clientId,
+  try {
+    const invoiceClientId = selectedAppt.clientId
+      ?? selectedAppt.client?.id
+      ?? null
+    if (!invoiceClientId) throw new Error("No client ID found")
+    await api.post("/invoices", {
+      clientId: invoiceClientId,
             lineItems: [{
               description: `${selectedAppt.therapyType} Session — ${new Date(selectedAppt.scheduledAt).toLocaleDateString('en-KE',{ day:'numeric', month:'long', year:'numeric' })}`,
               quantity:    1,
