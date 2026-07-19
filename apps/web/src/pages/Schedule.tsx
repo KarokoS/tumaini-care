@@ -316,6 +316,7 @@ export default function Schedule() {
             </div>
           )}
         </div>
+        )}
 
       {/* Book/Edit modal */}
       {showForm && (
