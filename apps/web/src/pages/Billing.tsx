@@ -25,12 +25,12 @@ export default function Billing() {
   const [filterStatus, setFilterStatus]             = useState("ALL")
   const [confirmDeleteInvoice, setConfirmDeleteInvoice] = useState<any>(null)
   const [deletingInvoice, setDeletingInvoice]       = useState(false)
-  const [editInvoice, setEditInvoice]   = useState<any>(null)
-  const [showEditInv, setShowEditInv]   = useState(false)
+  const [editInvoice, setEditInvoice]     = useState<any>(null)
+  const [showEditInv, setShowEditInv]     = useState(false)
   const [savingEditInv, setSavingEditInv] = useState(false)
-  const [editInvNotes, setEditInvNotes] = useState("")
-  const [editInvDue, setEditInvDue]     = useState("")
-  const [editInvItems, setEditInvItems] = useState<any[]>([])
+  const [editInvNotes, setEditInvNotes]   = useState("")
+  const [editInvDue, setEditInvDue]       = useState("")
+  const [editInvItems, setEditInvItems]   = useState<any[]>([])
 
   useEffect(() => { loadData() }, [])
 
@@ -66,26 +66,6 @@ export default function Billing() {
     unitPrice:   String(li.unitPrice),
   })) ?? [])
   setShowEditInv(true)
-}
-
-async function saveEditInvoice(e: React.FormEvent) {
-  e.preventDefault()
-  setSavingEditInv(true)
-  try {
-    await api.put(`/invoices/${editInvoice.id}`, {
-      notes:     editInvNotes,
-      dueDate:   editInvDue || null,
-      lineItems: editInvItems.map(item => ({
-        description: item.description,
-        quantity:    parseInt(item.quantity) || 1,
-        unitPrice:   parseFloat(item.unitPrice) || 0,
-      }))
-    })
-    setShowEditInv(false)
-    loadData()
-  } catch (err: any) {
-    alert(err.response?.data?.message ?? "Failed to update invoice")
-  } finally { setSavingEditInv(false) }
 }
 
   function addItem() { setItems(p => [...p, { description: "", quantity: "1", unitPrice: "" }]) }
@@ -174,6 +154,35 @@ async function saveEditInvoice(e: React.FormEvent) {
       alert(err.response?.data?.message ?? "Failed to delete invoice")
     } finally { setDeletingInvoice(false) }
   }
+
+  function openEditInvoice(inv: any) {
+  setEditInvoice(inv)
+  setEditInvNotes(inv.notes ?? "")
+  setEditInvDue(inv.dueDate ? inv.dueDate.split("T")[0] : "")
+  setEditInvItems(inv.lineItems?.map((li:any) => ({
+    description: li.description,
+    quantity:    String(li.quantity),
+    unitPrice:   String(li.unitPrice),
+  })) ?? [])
+  setShowEditInv(true)
+}
+
+async function saveEditInvoice(e: React.FormEvent) {
+  e.preventDefault(); setSavingEditInv(true)
+  try {
+    await api.put(`/invoices/${editInvoice.id}`, {
+      notes:     editInvNotes,
+      dueDate:   editInvDue || null,
+      lineItems: editInvItems.map(item => ({
+        description: item.description,
+        quantity:    parseInt(item.quantity)||1,
+        unitPrice:   parseFloat(item.unitPrice)||0,
+      }))
+    })
+    setShowEditInv(false); loadData()
+  } catch (err:any) { alert(err.response?.data?.message ?? "Failed to update invoice") }
+  finally { setSavingEditInv(false) }
+}
 
   const totalRevenue     = invoices.filter(i => i.status === "PAID" && parseFloat(i.amountKes) > 0).reduce((s, i) => s + parseFloat(i.amountKes), 0)
   const totalOutstanding = invoices.filter(i => i.status !== "PAID" && parseFloat(i.amountKes) > 0).reduce((s, i) => s + parseFloat(i.amountKes), 0)
@@ -511,12 +520,12 @@ async function saveEditInvoice(e: React.FormEvent) {
       )}
 
       {showEditInv && editInvoice && (
-  <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:100 }}>
-    <div style={{ background:"white", borderRadius:16, padding:28, width:540, maxHeight:"90vh", overflowY:"auto" }}>
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
-        <h2 style={{ fontSize:16, fontWeight:600, color:"#1a2724", margin:0 }}>Edit Invoice {editInvoice.number}</h2>
-        <button onClick={() => setShowEditInv(false)} style={{ border:"none", background:"none", fontSize:20, cursor:"pointer", color:"#8aab9e" }}>×</button>
-      </div>
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:100 }}>
+          <div style={{ background:"white", borderRadius:16, padding:28, width:540, maxHeight:"90vh", overflowY:"auto" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+              <h2 style={{ fontSize:16, fontWeight:600, color:"#1a2724", margin:0 }}>Edit Invoice {editInvoice.number}</h2>
+              <button onClick={() => setShowEditInv(false)} style={{ border:"none", background:"none", fontSize:20, cursor:"pointer", color:"#8aab9e" }}>×</button>
+              </div>
       <form onSubmit={saveEditInvoice}>
         <div style={{ marginBottom:14 }}>
           <label style={{ fontSize:12, color:"#4a6359", display:"block", marginBottom:4 }}>Due date</label>

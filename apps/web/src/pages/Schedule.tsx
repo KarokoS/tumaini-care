@@ -295,6 +295,10 @@ export default function Schedule() {
             <div><strong style={{ color:'#1a2724' }}>Status:</strong> <span style={{ color:STATUS_COLORS[selectedAppt.status]??'#8aab9e', fontWeight:600 }}>{selectedAppt.status}</span></div>
             {selectedAppt.notes && <div><strong style={{ color:'#1a2724' }}>Notes:</strong> {selectedAppt.notes}</div>}
           </div>
+          <a href="/sessions"
+  style={{ display:"block", marginTop:10, padding:"8px 14px", borderRadius:8, background:"#7c3aed", color:"white", fontSize:12.5, fontWeight:500, textDecoration:"none", textAlign:"center" }}>
+  ✏️ Write Session Note
+</a>
           {!isReadOnly ? (
             <div style={{ display:'flex', gap:8, marginTop:14 }}>
               <button onClick={() => openEdit(selectedAppt)}
@@ -312,21 +316,6 @@ export default function Schedule() {
             </div>
           )}
         </div>
-
-        {/* Write notes shortcut */}
-        <div style={{ marginTop:10 }}>
-  
-        href={`/sessions`}
-        onClick={() => {
-        sessionStorage.setItem('openNoteForAppt', JSON.stringify(selectedAppt))
-        setSelectedAppt(null)
-        }}
-        style={{ display:"block", padding:"8px 14px", borderRadius:8, border:"none", background:"#7c3aed", color:"white", fontSize:12.5, fontWeight:500, cursor:"pointer", textAlign:"center", textDecoration:"none" }}
-        >
-        ✏️ Write Session Note
-        </a>
-        </div>
-      )}
 
       {/* Book/Edit modal */}
       {showForm && (
