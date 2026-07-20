@@ -301,13 +301,13 @@ export async function clientRoutes(fastify: FastifyInstance) {
       where:   { clientId: id },
       include: {
         goals: {
-          include: {
-            progressLogs: {
-              orderBy: { loggedAt: 'asc' },
-              select:  { loggedAt: true, progressPct: true, note: true }
-            }
-          }
-        }
+  include: {
+    progressLogs: {
+      orderBy: { loggedAt: 'asc' },
+      select:  { loggedAt: true, pct: true, note: true }
+    }
+  }
+}
       },
       orderBy: { createdAt: 'asc' }
     })
@@ -328,11 +328,11 @@ export async function clientRoutes(fastify: FastifyInstance) {
       title:        g.title,
       currentPct:   g.progressPct,
       isAchieved:   g.isAchieved,
-      logs:         g.progressLogs.map(l => ({
-        date:        l.loggedAt,
-        progressPct: l.progressPct,
-        note:        l.note,
-      }))
+      logs: g.progressLogs.map(l => ({
+  date:        l.loggedAt,
+  progressPct: (l as any).pct,
+  note:        l.note,
+}))
     })))
 
     // Summary stats
