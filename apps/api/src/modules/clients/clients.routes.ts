@@ -215,4 +215,71 @@ export async function clientRoutes(fastify: FastifyInstance) {
     await logAction(request, 'CREATE', 'Client', `bulk-import-${imported}`)
     return reply.send({ imported, skipped, errors })
   })
+
+  // ── Session frequency alerts ──
+  fastify.get('/clients/alerts/missing-sessions', {
+    preHandler: requireRole('SUPER_ADMIN','MANAGER','THERAPIST','RECEPTIONIST','FINANCE')
+  }, async (request, reply) => {
+    const user      = request.user as JWTPayload
+    const { prisma } = await import('../../shared/prisma')
+    const twoWeeksAgo = new Date()
+    twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14)
+
+    // Get all active clients
+    const clients = await prisma.client.findMany({
+      where: { branchId: user.branchId, status: 'ACTIVE' },
+      include: {
+        guardians: { where: { isPrimary: true }, select: { fullName: true, phone: true } },
+        appointments: {
+          where: {
+            status: { in: ['COMPLETED', 'SCHEDULED', 'CONFIRMED'] },
+            scheduledAt: { gte: twoWeeksAgo }
+          },
+          orderBy: { scheduledAt: 'desc' },
+          take: 1,
+          include: { therapist: { select: { fullName: true } } }
+        },
+        itps: {
+          where: { status: 'ACTIVE' },
+          select: { id: true },
+          take: 1
+        }
+      },
+      orderBy: { fullName: 'asc' }
+    })
+
+    // Find clients with no recent activity
+    const missing = clients
+      .filter(c => c.appointments.length === 0)
+      .map(c => {
+        // Find their last appointment ever
+        return {
+          id:           c.id,
+          fullName:     c.fullName,
+          guardian:     c.guardians[0] ?? null,
+          hasActivePlan: c.itps.length > 0,
+          isProBono:    (c as any).isProBono ?? false,
+        }
+      })
+
+    // Also get last appointment date for each missing client
+    const missingWithLastAppt = await Promise.all(
+      missing.map(async c => {
+        const last = await prisma.appointment.findFirst({
+          where:   { clientId: c.id },
+          orderBy: { scheduledAt: 'desc' },
+          select:  { scheduledAt: true, status: true, therapyType: true, therapist: { select: { fullName: true } } }
+        })
+        const daysSince = last
+          ? Math.floor((new Date().getTime() - new Date(last.scheduledAt).getTime()) / (1000*60*60*24))
+          : null
+        return { ...c, lastAppointment: last, daysSince }
+      })
+    )
+
+    return reply.send({
+      count:   missingWithLastAppt.length,
+      clients: missingWithLastAppt.sort((a,b) => (b.daysSince??999) - (a.daysSince??999))
+    })
+  })
 }

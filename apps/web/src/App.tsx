@@ -19,6 +19,7 @@ import ParentPortal   from './pages/ParentPortal'
 import ChangePassword from './pages/ChangePassword'
 import ResetPassword  from './pages/ResetPassword'
 import Timetable      from './pages/Timetable'
+import Alerts from './pages/Alerts'
 
 const ADMIN    = ["SUPER_ADMIN", "MANAGER"]
 const CLINICAL = ["SUPER_ADMIN", "MANAGER", "THERAPIST"]
@@ -76,6 +77,7 @@ export default function App() {
         {/* All staff */}
         <Route path="/dashboard" element={<ProtectedRoute roles={ALL_STAFF}><Dashboard /></ProtectedRoute>} />
         <Route path="/inventory"  element={<ProtectedRoute roles={ALL_STAFF}><Inventory /></ProtectedRoute>} />
+        <Route path="/alerts"     element={<ProtectedRoute roles={ALL_STAFF}><Alerts /></ProtectedRoute>} />
 
         {/* Clients */}
         <Route path="/clients"         element={<ProtectedRoute roles={[...CLINICAL,"RECEPTIONIST"]}><Clients /></ProtectedRoute>} />

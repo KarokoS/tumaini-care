@@ -12,6 +12,7 @@ export default function Dashboard() {
   const [invoices,     setInvoices]     = useState<any[]>([])
   const [plans,        setPlans]        = useState<any[]>([])
   const [loading,      setLoading]      = useState(true)
+  const [missingCount, setMissingCount] = useState(0)
 
   useEffect(() => {
     Promise.all([
@@ -19,11 +20,13 @@ export default function Dashboard() {
       api.get("/appointments").catch(() => ({ data: [] })),
       api.get("/invoices").catch(() => ({ data: [] })),
       api.get("/itps").catch(() => ({ data: [] })),
-    ]).then(([c, a, inv, p]: any) => {
+      api.get("/clients/alerts/missing-sessions").catch(() => ({ data: { count:0 } })),
+    ]).then(([c,a,inv,p,alerts]: any) => {
       setClients(c.data)
       setAppointments(a.data)
       setInvoices(inv.data)
       setPlans(p.data)
+      setMissingCount(alerts.data?.count ?? 0)
     }).finally(() => setLoading(false))
   }, [])
 
@@ -286,6 +289,19 @@ export default function Dashboard() {
             {pendingInvoices.length === 0 && todayAppts.length === 0 && proBonoClients.length === 0 && (
               <div style={{ fontSize:13, color:"#8aab9e", textAlign:"center", padding:"12px 0" }}>All clear — no alerts</div>
             )}
+            {missingCount > 0 && (
+  <div style={{ display:"flex", gap:10, padding:"10px 12px", borderRadius:10, background:"#fde8ed", alignItems:"center", justifyContent:"space-between" }}>
+    <div style={{ display:"flex", gap:10, alignItems:"center" }}>
+      <span>⚠️</span>
+      <div style={{ fontSize:12.5, color:"#9b1d3a" }}>
+        <strong>{missingCount}</strong> client{missingCount>1?"s":""} have not attended in 14+ days
+      </div>
+    </div>
+    <a href="/alerts" style={{ fontSize:12, color:"#d63f5c", fontWeight:600, textDecoration:"none", flexShrink:0 }}>
+      View →
+    </a>
+  </div>
+)}
           </div>
         </div>
       </div>
