@@ -282,4 +282,76 @@ export async function clientRoutes(fastify: FastifyInstance) {
       clients: missingWithLastAppt.sort((a,b) => (b.daysSince??999) - (a.daysSince??999))
     })
   })
+  // ── Client progress data for charts ──
+  fastify.get('/clients/:id/progress', {
+    preHandler: requireRole('SUPER_ADMIN','MANAGER','THERAPIST','RECEPTIONIST')
+  }, async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const { prisma } = await import('../../shared/prisma')
+
+    // Get all appointments
+    const appointments = await prisma.appointment.findMany({
+      where:   { clientId: id },
+      orderBy: { scheduledAt: 'asc' },
+      select:  { scheduledAt: true, status: true, therapyType: true }
+    })
+
+    // Get all ITPs with goals and progress logs
+    const itps = await prisma.iTP.findMany({
+      where:   { clientId: id },
+      include: {
+        goals: {
+          include: {
+            progressLogs: {
+              orderBy: { loggedAt: 'asc' },
+              select:  { loggedAt: true, progressPct: true, note: true }
+            }
+          }
+        }
+      },
+      orderBy: { createdAt: 'asc' }
+    })
+
+    // Build monthly attendance summary
+    const monthlyAttendance: Record<string, { attended: number; missed: number; cancelled: number }> = {}
+    appointments.forEach(a => {
+      const key = new Date(a.scheduledAt).toLocaleDateString('en-KE', { month:'short', year:'numeric' })
+      if (!monthlyAttendance[key]) monthlyAttendance[key] = { attended:0, missed:0, cancelled:0 }
+      if (a.status === 'COMPLETED')                         monthlyAttendance[key].attended++
+      else if (a.status === 'NO_SHOW')                      monthlyAttendance[key].missed++
+      else if (a.status === 'CANCELLED')                    monthlyAttendance[key].cancelled++
+    })
+
+    // Build goal progress timeline
+    const goals = itps.flatMap(itp => itp.goals.map(g => ({
+      id:           g.id,
+      title:        g.title,
+      currentPct:   g.progressPct,
+      isAchieved:   g.isAchieved,
+      logs:         g.progressLogs.map(l => ({
+        date:        l.loggedAt,
+        progressPct: l.progressPct,
+        note:        l.note,
+      }))
+    })))
+
+    // Summary stats
+    const completed  = appointments.filter(a => a.status === 'COMPLETED').length
+    const total      = appointments.length
+    const noShows    = appointments.filter(a => a.status === 'NO_SHOW').length
+    const attendRate = total > 0 ? Math.round((completed / total) * 100) : 0
+
+    return reply.send({
+      monthlyAttendance,
+      goals,
+      summary: {
+        totalSessions:    total,
+        completedSessions: completed,
+        missedSessions:   noShows,
+        attendanceRate:   attendRate,
+        goalsTotal:       goals.length,
+        goalsAchieved:    goals.filter(g => g.isAchieved).length,
+      }
+    })
+  })
 }

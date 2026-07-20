@@ -229,6 +229,7 @@ export default function ClientDetail() {
                 { label:"🎯 Therapy Plans",   href:`/plans?clientId=${id}` },
                 { label:"💳 Billing",         href:`/billing?clientId=${id}` },
                 { label:"📋 Assessments",     href:`/assessments?clientId=${id}` },
+                { label:"📈 Progress Charts", href:`/clients/${id}/progress` },
               ].map((action, i) => (
                 <a key={i} href={action.href} style={{ padding:"9px 14px", borderRadius:8, border:"1px solid #d6e8e0", background:"#f8faf9", fontSize:13, color:"#1a8c6e", textDecoration:"none", fontWeight:500 }}>
                   {action.label}

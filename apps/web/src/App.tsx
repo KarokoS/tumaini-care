@@ -20,6 +20,7 @@ import ChangePassword from './pages/ChangePassword'
 import ResetPassword  from './pages/ResetPassword'
 import Timetable      from './pages/Timetable'
 import Alerts from './pages/Alerts'
+import ClientProgress from './pages/ClientProgress'
 
 const ADMIN    = ["SUPER_ADMIN", "MANAGER"]
 const CLINICAL = ["SUPER_ADMIN", "MANAGER", "THERAPIST"]
@@ -83,6 +84,7 @@ export default function App() {
         <Route path="/clients"         element={<ProtectedRoute roles={[...CLINICAL,"RECEPTIONIST"]}><Clients /></ProtectedRoute>} />
         <Route path="/clients/import"  element={<ProtectedRoute roles={ADMIN}><ImportClients /></ProtectedRoute>} />
         <Route path="/clients/:id"     element={<ProtectedRoute roles={[...CLINICAL,"RECEPTIONIST"]}><ClientDetail /></ProtectedRoute>} />
+        <Route path="/clients/:id/progress" element={<ProtectedRoute roles={[...CLINICAL,"RECEPTIONIST"]}><ClientProgress /></ProtectedRoute>} />
 
         {/* Schedule */}
         <Route path="/schedule" element={<ProtectedRoute roles={[...CLINICAL,"RECEPTIONIST"]}><Schedule /></ProtectedRoute>} />
