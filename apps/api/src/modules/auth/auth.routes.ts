@@ -105,29 +105,37 @@ export async function authRoutes(fastify: FastifyInstance) {
 
   // ── Forgot password ──
   fastify.post('/auth/forgot-password', async (request, reply) => {
-    const { email } = request.body as { email: string }
-    const staff = await prisma.staff.findUnique({
-      where: { email: email.toLowerCase().trim() }
-    })
-
-    if (!staff) return reply.send({ message: 'If that email exists, a reset link has been sent.' })
-
-    const token     = crypto.randomBytes(32).toString('hex')
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000)
-
-    await prisma.staff.update({
-      where: { id: staff.id },
-      data:  { resetToken: token, resetTokenExpiry: expiresAt } as any
-    })
-
-    try {
-      await sendPasswordResetEmail(staff.email, staff.fullName, token)
-    } catch (err) {
-      fastify.log.error({ err }, 'Failed to send reset email')
-    }
-
-    return reply.send({ message: 'If that email exists, a reset link has been sent.' })
+  const { email } = request.body as { email: string }
+  const staff = await prisma.staff.findUnique({
+    where: { email: email.toLowerCase().trim() }
   })
+
+  if (!staff) {
+    fastify.log.info(`Password reset requested for unknown email: ${email}`)
+    return reply.send({ message: 'If that email exists, a reset link has been sent.' })
+  }
+
+  const token     = crypto.randomBytes(32).toString('hex')
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000)
+
+  await prisma.staff.update({
+    where: { id: staff.id },
+    data:  { resetToken: token, resetTokenExpiry: expiresAt } as any
+  })
+
+  fastify.log.info(`Password reset token created for: ${staff.email}`)
+
+  try {
+    await sendPasswordResetEmail(staff.email, staff.fullName, token)
+    fastify.log.info(`Password reset email sent successfully to: ${staff.email}`)
+  } catch (err) {
+    fastify.log.error({ err }, `Failed to send password reset email to: ${staff.email}`)
+    // Still return success to avoid email enumeration
+    // But log the error for debugging
+  }
+
+  return reply.send({ message: 'If that email exists, a reset link has been sent.' })
+})
 
   // ── Reset password with token ──
   fastify.post('/auth/reset-password', async (request, reply) => {
