@@ -9,8 +9,13 @@ const THERAPY_COLORS: Record<string,string> = {
   SENSORY:'#f97316', GROUP:'#eab308', PSYCH:'#ec4899', PHYSIO:'#0891b2',
 }
 
+const STATUS_COLORS: Record<string,string> = {
+  SCHEDULED:'#d97706', CONFIRMED:'#2563a8', IN_SESSION:'#7c3aed',
+  COMPLETED:'#1a8c6e', CANCELLED:'#d63f5c', NO_SHOW:'#8aab9e',
+}
+
 export default function Sessions() {
-  const { user } = useAuthStore()
+  const { user }    = useAuthStore()
   const isTherapist = user?.role === "THERAPIST"
 
   const [appointments, setAppointments] = useState<any[]>([])
@@ -22,44 +27,41 @@ export default function Sessions() {
   const [savingNote, setSavingNote]     = useState(false)
   const [aiLoading, setAiLoading]       = useState(false)
   const [aiError, setAiError]           = useState("")
-
-  // Note form fields
-  const [subjective, setSubjective]   = useState("")
-  const [objective, setObjective]     = useState("")
-  const [assessment, setAssessment]   = useState("")
-  const [plan, setPlan]               = useState("")
-  const [goalsWorked, setGoalsWorked] = useState<string[]>([])
   const [markComplete, setMarkComplete] = useState(true)
+
+  const [subjective, setSubjective] = useState("")
+  const [objective, setObjective]   = useState("")
+  const [assessment, setAssessment] = useState("")
+  const [plan, setPlan]             = useState("")
 
   useEffect(() => { loadData() }, [])
 
-  // Auto-open note form if apptId is in URL
-useEffect(() => {
-  const params  = new URLSearchParams(window.location.search)
-  const apptId  = params.get('apptId')
-  if (apptId && appointments.length > 0) {
-    const appt = appointments.find((a:any) => a.id === apptId)
-    if (appt) {
-      openNoteForm(appt)
-      // Clean URL without reload
-      window.history.replaceState({}, '', '/sessions')
+  // Auto-open note if apptId in URL
+  useEffect(() => {
+    if (appointments.length === 0) return
+    const params = new URLSearchParams(window.location.search)
+    const apptId = params.get('apptId')
+    if (apptId) {
+      const appt = appointments.find((a:any) => a.id === apptId)
+      if (appt) {
+        openNoteForm(appt)
+        window.history.replaceState({}, '', '/sessions')
+      }
     }
-  }
-}, [appointments])
+  }, [appointments])
 
   function loadData() {
-  setLoading(true)
-  // Load last 90 days of appointments for performance
-  const from = new Date()
-  from.setDate(from.getDate() - 90)
-  const to = new Date()
-  to.setDate(to.getDate() + 30)
-  api.get(`/appointments?from=${from.toISOString()}&to=${to.toISOString()}`).catch(() => ({ data:[] }))
+    setLoading(true)
+    const from = new Date()
+    from.setDate(from.getDate() - 90)
+    const to = new Date()
+    to.setDate(to.getDate() + 30)
+    api.get(`/appointments?from=${from.toISOString()}&to=${to.toISOString()}`)
+      .catch(() => ({ data:[] }))
       .then((r:any) => {
-        // Filter to therapist's own sessions if therapist role
-        const appts = r.data.filter((a:any) =>
-          !isTherapist || a.therapist?.id === user?.id
-        )
+        const appts = isTherapist
+          ? r.data.filter((a:any) => a.therapist?.id === user?.id)
+          : r.data
         setAppointments(appts)
       })
       .finally(() => setLoading(false))
@@ -68,13 +70,11 @@ useEffect(() => {
   function openNoteForm(appt: any) {
     setSelectedAppt(appt)
     const note = appt.sessionNote
-    setSubjective(note?.subjective ?? "")
-    setObjective(note?.objective   ?? "")
-    setAssessment(note?.assessment ?? "")
-    setPlan(note?.plan             ?? "")
-    setGoalsWorked(note?.goalsWorked ?? [])
+    setSubjective(note?.subjective  ?? "")
+    setObjective(note?.objective    ?? "")
+    setAssessment(note?.assessment  ?? "")
+    setPlan(note?.plan              ?? "")
     setMarkComplete(appt.status !== "COMPLETED")
-    setGenerateInvoice(appt.status !== "COMPLETED")
     setAiError("")
     setShowNoteForm(true)
   }
@@ -84,7 +84,7 @@ useEffect(() => {
     setAiLoading(true); setAiError("")
     try {
       const res = await api.post("/ai/soap-draft", {
-        clientId:      selectedAppt.client?.id ?? selectedAppt.clientId,
+        clientId:      selectedAppt.clientId ?? selectedAppt.client?.id,
         therapyType:   selectedAppt.therapyType,
         appointmentId: selectedAppt.id,
       })
@@ -92,35 +92,37 @@ useEffect(() => {
       setObjective(res.data.objective   ?? "")
       setAssessment(res.data.assessment ?? "")
       setPlan(res.data.plan             ?? "")
-    } catch (err: any) {
+    } catch (err:any) {
       setAiError(err.response?.data?.message ?? "AI generation failed. Please write notes manually.")
     } finally { setAiLoading(false) }
   }
 
   async function saveNote(e: React.FormEvent) {
-  e.preventDefault()
-  if (!selectedAppt) return
-  setSavingNote(true)
-  try {
-    const noteData = { subjective, objective, assessment, plan }
+    e.preventDefault()
+    if (!selectedAppt) return
+    setSavingNote(true)
+    try {
+      const noteData = { subjective, objective, assessment, plan }
 
-    if (selectedAppt.sessionNote?.id) {
-      await api.patch(`/sessions/${selectedAppt.sessionNote.id}`, noteData)
-    } else {
-      await api.post("/sessions", { appointmentId: selectedAppt.id, ...noteData })
-    }
+      if (selectedAppt.sessionNote?.id) {
+        await api.patch(`/sessions/${selectedAppt.sessionNote.id}`, noteData)
+      } else {
+        await api.post("/sessions", {
+          appointmentId: selectedAppt.id,
+          ...noteData
+        })
+      }
 
-    // Mark session as completed if checkbox selected
-    if (markComplete && selectedAppt.status !== "COMPLETED") {
-      await api.patch(`/appointments/${selectedAppt.id}`, { status: "COMPLETED" })
-    }
+      if (markComplete && selectedAppt.status !== "COMPLETED") {
+        await api.patch(`/appointments/${selectedAppt.id}`, { status: "COMPLETED" })
+      }
 
-    setShowNoteForm(false)
-    loadData()
-  } catch (err: any) {
-    alert(err.response?.data?.message ?? "Failed to save session note")
-  } finally { setSavingNote(false) }
-}
+      setShowNoteForm(false)
+      loadData()
+    } catch (err:any) {
+      alert(err.response?.data?.message ?? "Failed to save session note")
+    } finally { setSavingNote(false) }
+  }
 
   const filtered = appointments.filter(a => {
     const matchSearch = (a.client?.fullName ?? "").toLowerCase().includes(search.toLowerCase()) ||
@@ -129,27 +131,23 @@ useEffect(() => {
     return matchSearch && matchStatus
   })
 
-  const STATUS_COLORS: Record<string,string> = {
-    SCHEDULED:'#d97706', CONFIRMED:'#2563a8', IN_SESSION:'#7c3aed',
-    COMPLETED:'#1a8c6e', CANCELLED:'#d63f5c', NO_SHOW:'#8aab9e',
-  }
-
   const textarea = {
     width:"100%", padding:"9px 12px", borderRadius:8,
     border:"1px solid #d6e8e0", fontSize:13,
     boxSizing:"border-box" as const, resize:"vertical" as const,
-    fontFamily:"inherit", lineHeight:1.6,
+    fontFamily:"inherit", lineHeight:1.6, minHeight:80,
   }
 
   return (
     <Layout title="Sessions">
-      {/* Quick stats */}
+
+      {/* Stats */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:14, marginBottom:16 }}>
         {[
-          { label:"Total",     value: appointments.length,                                      color:"#2563a8" },
-          { label:"Today",     value: appointments.filter(a => new Date(a.scheduledAt).toDateString()===new Date().toDateString()).length, color:"#d97706" },
-          { label:"Completed", value: appointments.filter(a=>a.status==="COMPLETED").length,    color:"#1a8c6e" },
-          { label:"With Notes",value: appointments.filter(a=>a.sessionNote).length,             color:"#7c3aed" },
+          { label:"Total",      value: appointments.length,                                                                              color:"#2563a8" },
+          { label:"Today",      value: appointments.filter(a=>new Date(a.scheduledAt).toDateString()===new Date().toDateString()).length, color:"#d97706" },
+          { label:"Completed",  value: appointments.filter(a=>a.status==="COMPLETED").length,                                            color:"#1a8c6e" },
+          { label:"With Notes", value: appointments.filter(a=>a.sessionNote).length,                                                     color:"#7c3aed" },
         ].map((s,i) => (
           <div key={i} style={{ background:"white", border:"1px solid #d6e8e0", borderRadius:12, padding:"14px 18px" }}>
             <div style={{ fontSize:11, fontWeight:600, color:"#8aab9e", textTransform:"uppercase", marginBottom:4 }}>{s.label}</div>
@@ -160,9 +158,12 @@ useEffect(() => {
 
       {/* Filters */}
       <div style={{ display:"flex", gap:10, marginBottom:14, flexWrap:"wrap", alignItems:"center" }}>
-        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search client or therapist..."
-          style={{ padding:"8px 14px", borderRadius:8, border:"1px solid #d6e8e0", fontSize:13, width:260, outline:"none" }} />
-        <div style={{ display:"flex", gap:6 }}>
+        <input
+          value={search} onChange={e=>setSearch(e.target.value)}
+          placeholder="Search client or therapist..."
+          style={{ padding:"8px 14px", borderRadius:8, border:"1px solid #d6e8e0", fontSize:13, width:260, outline:"none" }}
+        />
+        <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
           {["ALL","SCHEDULED","COMPLETED","CANCELLED","NO_SHOW"].map(s => (
             <button key={s} onClick={() => setStatusFilter(s)}
               style={{ padding:"6px 12px", borderRadius:8, border:"1px solid", borderColor:statusFilter===s?"#1a8c6e":"#d6e8e0", background:statusFilter===s?"#e6f4ef":"white", color:statusFilter===s?"#1a8c6e":"#4a6359", fontSize:12, fontWeight:500, cursor:"pointer" }}>
@@ -179,15 +180,16 @@ useEffect(() => {
         ) : filtered.length === 0 ? (
           <div style={{ textAlign:"center", padding:40, color:"#8aab9e" }}>No sessions found</div>
         ) : filtered.map((appt, i) => {
-          const color    = THERAPY_COLORS[appt.therapyType] ?? "#8aab9e"
-          const d        = new Date(appt.scheduledAt)
-          const hasNote  = !!appt.sessionNote
-          const isToday  = d.toDateString() === new Date().toDateString()
+          const color   = THERAPY_COLORS[appt.therapyType] ?? "#8aab9e"
+          const d       = new Date(appt.scheduledAt)
+          const hasNote = !!appt.sessionNote
+          const isToday = d.toDateString() === new Date().toDateString()
           return (
             <div key={i} style={{ background:"white", border:`1px solid ${isToday?"#1a8c6e44":"#d6e8e0"}`, borderRadius:14, padding:"16px 20px", display:"flex", alignItems:"center", gap:16, flexWrap:"wrap" }}>
-              {/* Therapy type badge */}
+
+              {/* Therapy badge */}
               <div style={{ width:44, height:44, borderRadius:12, background:color+"22", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                <span style={{ fontSize:11, fontWeight:700, color }}>{appt.therapyType}</span>
+                <span style={{ fontSize:10, fontWeight:700, color, textAlign:"center" }}>{appt.therapyType}</span>
               </div>
 
               {/* Info */}
@@ -196,7 +198,7 @@ useEffect(() => {
                   <span style={{ fontSize:14, fontWeight:600, color:"#1a2724" }}>{appt.client?.fullName ?? "Unknown"}</span>
                   {isToday && <span style={{ fontSize:10, padding:"1px 7px", borderRadius:20, background:"#e6f4ef", color:"#1a8c6e", fontWeight:600 }}>TODAY</span>}
                   {hasNote && <span style={{ fontSize:10, padding:"1px 7px", borderRadius:20, background:"#f0f4f2", color:"#8aab9e", fontWeight:500 }}>📝 Note saved</span>}
-                  {(appt as any).isRecurring && <span style={{ fontSize:10, color:"#8aab9e" }}>🔁</span>}
+                  {appt.isRecurring && <span style={{ fontSize:10, color:"#8aab9e" }}>🔁</span>}
                 </div>
                 <div style={{ fontSize:12.5, color:"#8aab9e", marginTop:3 }}>
                   {d.toLocaleDateString('en-KE',{ weekday:'short', day:'numeric', month:'short' })} at {d.toLocaleTimeString('en-KE',{ hour:'2-digit', minute:'2-digit' })}
@@ -205,27 +207,31 @@ useEffect(() => {
                 </div>
               </div>
 
-              {/* Status */}
+              {/* Status badge */}
               <span style={{ fontSize:11, padding:"3px 10px", borderRadius:20, background:(STATUS_COLORS[appt.status]??"#8aab9e")+"22", color:STATUS_COLORS[appt.status]??"#8aab9e", fontWeight:600, flexShrink:0 }}>
                 {appt.status}
               </span>
 
-              {/* Actions */}
+              {/* Action buttons */}
               <div style={{ display:"flex", gap:8, flexShrink:0 }}>
                 <button
                   onClick={() => openNoteForm(appt)}
                   style={{ padding:"7px 14px", borderRadius:8, border:"none", background:hasNote?"#f0f4f2":"#1a8c6e", color:hasNote?"#4a6359":"white", fontSize:12.5, fontWeight:500, cursor:"pointer" }}
                 >
-                  {hasNote ? "Edit Note" : "✏️ Write Note"}
+                  {hasNote ? "✏️ Edit Note" : "✏️ Write Note"}
                 </button>
                 {hasNote && (
                   <>
-                    <button onClick={() => generateSessionNotePDF(appt)}
-                      style={{ padding:"7px 12px", borderRadius:8, border:"1px solid #d6e8e0", background:"white", fontSize:12, cursor:"pointer", color:"#4a6359" }}>
+                    <button
+                      onClick={() => generateSessionNotePDF(appt)}
+                      style={{ padding:"7px 12px", borderRadius:8, border:"1px solid #d6e8e0", background:"white", fontSize:12, cursor:"pointer", color:"#4a6359" }}
+                    >
                       PDF
                     </button>
-                    <button onClick={() => generateParentSessionPDF(appt)}
-                      style={{ padding:"7px 12px", borderRadius:8, border:"1px solid #d6e8e0", background:"white", fontSize:12, cursor:"pointer", color:"#1a8c6e" }}>
+                    <button
+                      onClick={() => generateParentSessionPDF(appt)}
+                      style={{ padding:"7px 12px", borderRadius:8, border:"1px solid #d6e8e0", background:"white", fontSize:12, cursor:"pointer", color:"#1a8c6e" }}
+                    >
                       Parent
                     </button>
                   </>
@@ -241,58 +247,51 @@ useEffect(() => {
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:100, padding:16 }}>
           <div style={{ background:"white", borderRadius:16, width:"100%", maxWidth:680, maxHeight:"95vh", overflowY:"auto" }}>
 
-            {/* Header */}
-            <div style={{ padding:"18px 24px", borderBottom:"1px solid #d6e8e0", display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+            {/* Modal header */}
+            <div style={{ padding:"18px 24px", borderBottom:"1px solid #d6e8e0", display:"flex", justifyContent:"space-between", alignItems:"flex-start", position:"sticky", top:0, background:"white", zIndex:1 }}>
               <div>
                 <div style={{ fontSize:16, fontWeight:600, color:"#1a2724" }}>
-                  Session Note — {selectedAppt.client?.fullName}
+                  {selectedAppt.sessionNote ? "Edit" : "Write"} Session Note — {selectedAppt.client?.fullName}
                 </div>
                 <div style={{ fontSize:12.5, color:"#8aab9e", marginTop:3 }}>
                   {selectedAppt.therapyType} · {new Date(selectedAppt.scheduledAt).toLocaleDateString('en-KE',{ weekday:'long', day:'numeric', month:'long' })}
                   {selectedAppt.therapist?.fullName ? " · "+selectedAppt.therapist.fullName : ""}
                 </div>
               </div>
-              <button onClick={() => setShowNoteForm(false)} style={{ border:"none", background:"none", fontSize:22, cursor:"pointer", color:"#8aab9e" }}>×</button>
+              <button onClick={() => setShowNoteForm(false)} style={{ border:"none", background:"none", fontSize:22, cursor:"pointer", color:"#8aab9e", marginLeft:16 }}>×</button>
             </div>
 
-            {/* AI Draft button */}
-            <div style={{ padding:"14px 24px", borderBottom:"1px solid #d6e8e0", background:"#f8faf9" }}>
-              <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-                <button
-                  type="button"
-                  onClick={generateAISoap}
-                  disabled={aiLoading}
-                  style={{ padding:"9px 18px", borderRadius:8, border:"none", background:aiLoading?"#8aab9e":"#7c3aed", color:"white", fontSize:13, fontWeight:500, cursor:aiLoading?"not-allowed":"pointer", display:"flex", alignItems:"center", gap:8 }}
-                >
-                  {aiLoading ? (
-                    <>⏳ Generating AI draft...</>
-                  ) : (
-                    <>✨ Generate AI SOAP Draft</>
-                  )}
-                </button>
-                <div style={{ fontSize:12, color:"#8aab9e" }}>
-                  AI will draft notes based on {selectedAppt.therapyType} therapy and client goals — review and edit before saving
-                </div>
-              </div>
+            {/* AI draft button */}
+            <div style={{ padding:"12px 24px", borderBottom:"1px solid #d6e8e0", background:"#f8faf9", display:"flex", alignItems:"center", gap:12, flexWrap:"wrap" }}>
+              <button
+                type="button"
+                onClick={generateAISoap}
+                disabled={aiLoading}
+                style={{ padding:"8px 16px", borderRadius:8, border:"none", background:aiLoading?"#8aab9e":"#7c3aed", color:"white", fontSize:13, fontWeight:500, cursor:aiLoading?"not-allowed":"pointer" }}
+              >
+                {aiLoading ? "⏳ Generating..." : "✨ Generate AI Draft"}
+              </button>
+              <span style={{ fontSize:12, color:"#8aab9e" }}>
+                AI drafts SOAP notes from {selectedAppt.therapyType} therapy type and client goals
+              </span>
               {aiError && (
-                <div style={{ marginTop:8, fontSize:12.5, color:"#d63f5c", background:"#fde8ed", padding:"6px 12px", borderRadius:6 }}>
+                <div style={{ width:"100%", fontSize:12.5, color:"#d63f5c", background:"#fde8ed", padding:"6px 12px", borderRadius:6 }}>
                   {aiError}
                 </div>
               )}
             </div>
 
+            {/* SOAP form */}
             <form onSubmit={saveNote} style={{ padding:"20px 24px" }}>
-
-              {/* SOAP sections */}
               {[
-                { key:"S", label:"Subjective", color:"#2563a8", desc:"What the parent/guardian reports — child's week, mood, presentation today", value:subjective, setter:setSubjective },
-                { key:"O", label:"Objective",  color:"#1a8c6e", desc:"Observable behaviours and measurable performance during the session", value:objective, setter:setObjective },
-                { key:"A", label:"Assessment", color:"#d97706", desc:"Clinical interpretation — progress toward goals, response to therapy", value:assessment, setter:setAssessment },
-                { key:"P", label:"Plan",       color:"#7c3aed", desc:"Next steps, home programme, focus for next session", value:plan, setter:setPlan },
+                { key:"S", label:"Subjective", color:"#2563a8", desc:"What the parent/guardian reports", value:subjective, setter:setSubjective },
+                { key:"O", label:"Objective",  color:"#1a8c6e", desc:"Observable behaviours during session", value:objective,  setter:setObjective  },
+                { key:"A", label:"Assessment", color:"#d97706", desc:"Clinical interpretation and progress",  value:assessment, setter:setAssessment },
+                { key:"P", label:"Plan",       color:"#7c3aed", desc:"Next steps and home programme",        value:plan,       setter:setPlan       },
               ].map(section => (
                 <div key={section.key} style={{ marginBottom:16 }}>
                   <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:6 }}>
-                    <div style={{ width:24, height:24, borderRadius:6, background:section.color, display:"flex", alignItems:"center", justifyContent:"center", color:"white", fontSize:11, fontWeight:700 }}>
+                    <div style={{ width:24, height:24, borderRadius:6, background:section.color, display:"flex", alignItems:"center", justifyContent:"center", color:"white", fontSize:11, fontWeight:700, flexShrink:0 }}>
                       {section.key}
                     </div>
                     <label style={{ fontSize:13, fontWeight:600, color:section.color }}>{section.label}</label>
@@ -301,40 +300,46 @@ useEffect(() => {
                   <textarea
                     value={section.value}
                     onChange={e => section.setter(e.target.value)}
-                    rows={3}
-                    placeholder={`Write ${section.label.toLowerCase()} notes here...`}
+                    placeholder={`${section.label} notes...`}
                     style={{ ...textarea, borderColor:section.value ? section.color+"66" : "#d6e8e0" }}
                   />
                 </div>
               ))}
 
-              {/* Auto-complete options */}
+              {/* Mark complete checkbox */}
               <div style={{ background:"#f8faf9", borderRadius:10, padding:"12px 16px", marginBottom:16 }}>
-  <label style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, cursor:"pointer" }}>
-    <input
-      type="checkbox"
-      checked={markComplete}
-      onChange={e => setMarkComplete(e.target.checked)}
-      disabled={selectedAppt.status === "COMPLETED"}
-    />
-    <span style={{ color:selectedAppt.status==="COMPLETED"?"#8aab9e":"#1a2724" }}>
-      Mark session as <strong>Completed</strong>
-      {selectedAppt.status === "COMPLETED" && " (already completed)"}
-    </span>
-  </label>
-  <div style={{ fontSize:11.5, color:"#8aab9e", marginTop:6, marginLeft:24 }}>
-    Invoice will be generated separately from the Billing section
-  </div>
-</div>
+                <label style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, cursor:"pointer" }}>
+                  <input
+                    type="checkbox"
+                    checked={markComplete}
+                    onChange={e => setMarkComplete(e.target.checked)}
+                    disabled={selectedAppt.status === "COMPLETED"}
+                  />
+                  <span style={{ color:selectedAppt.status==="COMPLETED"?"#8aab9e":"#1a2724" }}>
+                    Mark session as <strong>Completed</strong>
+                    {selectedAppt.status==="COMPLETED" && " (already completed)"}
+                  </span>
+                </label>
+                <div style={{ fontSize:11.5, color:"#8aab9e", marginTop:6, marginLeft:24 }}>
+                  Invoice will be generated separately from the Billing section
+                </div>
+              </div>
 
+              {/* Form actions */}
               <div style={{ display:"flex", gap:10, justifyContent:"flex-end" }}>
-                <button type="button" onClick={() => setShowNoteForm(false)}
-                  style={{ padding:"10px 18px", borderRadius:8, border:"1px solid #d6e8e0", background:"white", fontSize:13, cursor:"pointer", color:"#4a6359" }}>
+                <button
+                  type="button"
+                  onClick={() => setShowNoteForm(false)}
+                  style={{ padding:"10px 18px", borderRadius:8, border:"1px solid #d6e8e0", background:"white", fontSize:13, cursor:"pointer", color:"#4a6359" }}
+                >
                   Cancel
                 </button>
-                <button type="submit" disabled={savingNote}
-                  style={{ padding:"10px 18px", borderRadius:8, border:"none", background:"#1a8c6e", color:"white", fontSize:13, fontWeight:500, cursor:"pointer", opacity:savingNote?0.7:1 }}>
-                  {savingNote ? "Saving..." : "Save Note"}
+                <button
+                  type="submit"
+                  disabled={savingNote}
+                  style={{ padding:"10px 18px", borderRadius:8, border:"none", background:"#1a8c6e", color:"white", fontSize:13, fontWeight:500, cursor:"pointer", opacity:savingNote?0.7:1 }}
+                >
+                  {savingNote ? "Saving..." : selectedAppt.sessionNote ? "Update Note" : "Save Note"}
                 </button>
               </div>
             </form>
