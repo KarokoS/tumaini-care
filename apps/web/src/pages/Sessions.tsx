@@ -30,7 +30,6 @@ export default function Sessions() {
   const [plan, setPlan]               = useState("")
   const [goalsWorked, setGoalsWorked] = useState<string[]>([])
   const [markComplete, setMarkComplete] = useState(true)
-  const [generateInvoice, setGenerateInvoice] = useState(true)
 
   useEffect(() => { loadData() }, [])
 
@@ -99,49 +98,29 @@ useEffect(() => {
   }
 
   async function saveNote(e: React.FormEvent) {
-    e.preventDefault()
-    if (!selectedAppt) return
-    setSavingNote(true)
-    try {
-      const noteData = { subjective, objective, assessment, plan, goalsWorked }
-
-      if (selectedAppt.sessionNote?.id) {
-        await api.patch(`/sessions/${selectedAppt.sessionNote.id}`, noteData)
-      } else {
-        await api.post("/sessions", { appointmentId: selectedAppt.id, ...noteData })
-      }
-
-      // Mark session as completed
-      if (markComplete && selectedAppt.status !== "COMPLETED") {
-        await api.patch(`/appointments/${selectedAppt.id}`, { status: "COMPLETED" })
-      }
-
-      // Auto-generate invoice at KSh 300
-      if (generateInvoice && selectedAppt.status !== "COMPLETED") {
+  e.preventDefault()
+  if (!selectedAppt) return
+  setSavingNote(true)
   try {
-    const invoiceClientId = selectedAppt.clientId
-      ?? selectedAppt.client?.id
-      ?? null
-    if (!invoiceClientId) throw new Error("No client ID found")
-    await api.post("/invoices", {
-      clientId: invoiceClientId,
-            lineItems: [{
-              description: `${selectedAppt.therapyType} Session — ${new Date(selectedAppt.scheduledAt).toLocaleDateString('en-KE',{ day:'numeric', month:'long', year:'numeric' })}`,
-              quantity:    1,
-              unitPrice:   300,
-            }]
-          })
-        } catch (invErr) {
-          console.warn("Invoice auto-generation failed:", invErr)
-        }
-      }
+    const noteData = { subjective, objective, assessment, plan }
 
-      setShowNoteForm(false)
-      loadData()
-    } catch (err: any) {
-      alert(err.response?.data?.message ?? "Failed to save session note")
-    } finally { setSavingNote(false) }
-  }
+    if (selectedAppt.sessionNote?.id) {
+      await api.patch(`/sessions/${selectedAppt.sessionNote.id}`, noteData)
+    } else {
+      await api.post("/sessions", { appointmentId: selectedAppt.id, ...noteData })
+    }
+
+    // Mark session as completed if checkbox selected
+    if (markComplete && selectedAppt.status !== "COMPLETED") {
+      await api.patch(`/appointments/${selectedAppt.id}`, { status: "COMPLETED" })
+    }
+
+    setShowNoteForm(false)
+    loadData()
+  } catch (err: any) {
+    alert(err.response?.data?.message ?? "Failed to save session note")
+  } finally { setSavingNote(false) }
+}
 
   const filtered = appointments.filter(a => {
     const matchSearch = (a.client?.fullName ?? "").toLowerCase().includes(search.toLowerCase()) ||
@@ -330,27 +309,23 @@ useEffect(() => {
               ))}
 
               {/* Auto-complete options */}
-              <div style={{ background:"#f8faf9", borderRadius:10, padding:"14px 16px", marginBottom:16 }}>
-                <div style={{ fontSize:12, fontWeight:600, color:"#1a2724", marginBottom:10 }}>On save:</div>
-                <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-                  <label style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:"#1a2724", cursor:"pointer" }}>
-                    <input type="checkbox" checked={markComplete} onChange={e=>setMarkComplete(e.target.checked)}
-                      disabled={selectedAppt.status==="COMPLETED"} />
-                    <span style={{ color:selectedAppt.status==="COMPLETED"?"#8aab9e":"#1a2724" }}>
-                      Mark session as <strong>Completed</strong>
-                      {selectedAppt.status==="COMPLETED" && " (already completed)"}
-                    </span>
-                  </label>
-                  <label style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:"#1a2724", cursor:"pointer" }}>
-                    <input type="checkbox" checked={generateInvoice} onChange={e=>setGenerateInvoice(e.target.checked)}
-                      disabled={selectedAppt.status==="COMPLETED"} />
-                    <span style={{ color:selectedAppt.status==="COMPLETED"?"#8aab9e":"#1a2724" }}>
-                      Auto-generate invoice <strong>(KSh 300)</strong>
-                      {selectedAppt.status==="COMPLETED" && " (already invoiced)"}
-                    </span>
-                  </label>
-                </div>
-              </div>
+              <div style={{ background:"#f8faf9", borderRadius:10, padding:"12px 16px", marginBottom:16 }}>
+  <label style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, cursor:"pointer" }}>
+    <input
+      type="checkbox"
+      checked={markComplete}
+      onChange={e => setMarkComplete(e.target.checked)}
+      disabled={selectedAppt.status === "COMPLETED"}
+    />
+    <span style={{ color:selectedAppt.status==="COMPLETED"?"#8aab9e":"#1a2724" }}>
+      Mark session as <strong>Completed</strong>
+      {selectedAppt.status === "COMPLETED" && " (already completed)"}
+    </span>
+  </label>
+  <div style={{ fontSize:11.5, color:"#8aab9e", marginTop:6, marginLeft:24 }}>
+    Invoice will be generated separately from the Billing section
+  </div>
+</div>
 
               <div style={{ display:"flex", gap:10, justifyContent:"flex-end" }}>
                 <button type="button" onClick={() => setShowNoteForm(false)}
