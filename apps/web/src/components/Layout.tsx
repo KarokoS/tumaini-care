@@ -12,6 +12,7 @@ function getNavSections(role: string): NavSection[] {
       { label:"Dashboard",     path:"/dashboard",  icon:"⊞" },
       { label:"Clients",       path:"/clients",    icon:"👥" },
       { label:"Schedule",      path:"/schedule",   icon:"📅" },
+      { label:"Daily Summary", path:"/daily-summary", icon:"📊" },
       { label:"Session Alerts", path:"/alerts", icon:"⚠️" },
     ]},
     { label:"Therapy", items:[
@@ -30,6 +31,7 @@ function getNavSections(role: string): NavSection[] {
       { label:"Dashboard",     path:"/dashboard",  icon:"⊞" },
       { label:"Clients",       path:"/clients",    icon:"👥" },
       { label:"Schedule",      path:"/schedule",   icon:"📅" },
+      { label:"Daily Summary", path:"/daily-summary", icon:"📊" },
       { label:"Session Alerts", path:"/alerts", icon:"⚠️" },
     ]},
     { label:"Operations", items:[

@@ -59,10 +59,13 @@ export default function Sessions() {
     api.get(`/appointments?from=${from.toISOString()}&to=${to.toISOString()}`)
       .catch(() => ({ data:[] }))
       .then((r:any) => {
-        const appts = isTherapist
-          ? r.data.filter((a:any) => a.therapist?.id === user?.id)
-          : r.data
-        setAppointments(appts)
+        const appts = (isTherapist
+  ? r.data.filter((a:any) => a.therapist?.id === user?.id)
+  : r.data
+).sort((a:any, b:any) =>
+  new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime()
+)
+setAppointments(appts)
       })
       .finally(() => setLoading(false))
   }

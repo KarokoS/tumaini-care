@@ -79,7 +79,7 @@ export async function appointmentRoutes(fastify: FastifyInstance) {
 
   // ── Update appointment ──
   fastify.patch('/appointments/:id', {
-    preHandler: requireRole('SUPER_ADMIN', 'MANAGER', 'RECEPTIONIST')
+    preHandler: requireRole('SUPER_ADMIN', 'MANAGER', 'RECEPTIONIST', 'THERAPIST')
   }, async (request, reply) => {
     const { id } = request.params as { id: string }
     const body   = request.body as any
