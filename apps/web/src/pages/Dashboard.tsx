@@ -13,6 +13,7 @@ export default function Dashboard() {
   const [plans,        setPlans]        = useState<any[]>([])
   const [loading,      setLoading]      = useState(true)
   const [missingCount, setMissingCount] = useState(0)
+  const [itpAlertCount, setItpAlertCount] = useState(0)
 
   useEffect(() => {
     Promise.all([
@@ -21,12 +22,14 @@ export default function Dashboard() {
       api.get("/invoices").catch(() => ({ data: [] })),
       api.get("/itps").catch(() => ({ data: [] })),
       api.get("/clients/alerts/missing-sessions").catch(() => ({ data: { count:0 } })),
+      api.get("/itps/review-alerts").catch(() => ({ data:{ counts:{ total:0 } } })),
     ]).then(([c,a,inv,p,alerts]: any) => {
       setClients(c.data)
       setAppointments(a.data)
       setInvoices(inv.data)
       setPlans(p.data)
       setMissingCount(alerts.data?.count ?? 0)
+      setItpAlertCount(itpAlerts.data?.counts?.total ?? 0)
     }).finally(() => setLoading(false))
   }, [])
 
@@ -298,6 +301,19 @@ export default function Dashboard() {
       </div>
     </div>
     <a href="/alerts" style={{ fontSize:12, color:"#d63f5c", fontWeight:600, textDecoration:"none", flexShrink:0 }}>
+      View →
+    </a>
+  </div>
+)}
+{itpAlertCount > 0 && (
+  <div style={{ display:"flex", gap:10, padding:"10px 12px", borderRadius:10, background:"#fef3c7", alignItems:"center", justifyContent:"space-between" }}>
+    <div style={{ display:"flex", gap:10, alignItems:"center" }}>
+      <span>🎯</span>
+      <div style={{ fontSize:12.5, color:"#92400e" }}>
+        <strong>{itpAlertCount}</strong> ITP review{itpAlertCount>1?"s":""} overdue or due this week
+      </div>
+    </div>
+    <a href="/alerts" style={{ fontSize:12, color:"#d97706", fontWeight:600, textDecoration:"none", flexShrink:0 }}>
       View →
     </a>
   </div>
