@@ -79,14 +79,21 @@ export async function appointmentRoutes(fastify: FastifyInstance) {
 
   // ── Update appointment ──
   fastify.patch('/appointments/:id', {
-    preHandler: requireRole('SUPER_ADMIN', 'MANAGER', 'RECEPTIONIST', 'THERAPIST')
-  }, async (request, reply) => {
-    const { id } = request.params as { id: string }
-    const body   = request.body as any
+  preHandler: requireRole('SUPER_ADMIN', 'MANAGER', 'RECEPTIONIST', 'THERAPIST')
+}, async (request, reply) => {
+  const { id } = request.params as { id: string }
+  const body   = request.body as any
+  const data: any = {}
+  if (body.status)      data.status      = body.status
+  if (body.therapistId !== undefined) data.therapistId = body.therapistId
+  if (body.therapyType) data.therapyType = body.therapyType
+  if (body.scheduledAt) data.scheduledAt = new Date(body.scheduledAt)
+  if (body.durationMin) data.durationMin = body.durationMin
+  if (body.notes !== undefined) data.notes = body.notes
 
-    const appointment = await prisma.appointment.update({
-      where: { id },
-      data:  body,
+  const appointment = await prisma.appointment.update({
+    where: { id },
+    data,
       include: {
         client: {
           include: { guardians: { where: { isPrimary: true } } }

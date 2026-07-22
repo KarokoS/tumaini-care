@@ -12,7 +12,6 @@ function getNavSections(role: string): NavSection[] {
       { label:"Dashboard",     path:"/dashboard",  icon:"⊞" },
       { label:"Clients",       path:"/clients",    icon:"👥" },
       { label:"Schedule",      path:"/schedule",   icon:"📅" },
-      { label:"Daily Summary", path:"/daily-summary", icon:"📊" },
       { label:"Session Alerts", path:"/alerts", icon:"⚠️" },
     ]},
     { label:"Therapy", items:[
@@ -53,6 +52,7 @@ function getNavSections(role: string): NavSection[] {
   return [
     { label:"Main", items:[
       { label:"Dashboard",         path:"/dashboard",        icon:"⊞" },
+      { label:"Daily Summary", path:"/daily-summary", icon:"📊" },
       { label:"Clients",           path:"/clients",          icon:"👥" },
       { label:"Import Clients",    path:"/clients/import",   icon:"📥" },
       { label:"Schedule",          path:"/schedule",         icon:"📅" },

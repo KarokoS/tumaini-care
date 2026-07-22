@@ -97,7 +97,7 @@ export default function App() {
 
         {/* Timetable */}
         <Route path="/timetable" element={<ProtectedRoute roles={[...ADMIN,"THERAPIST"]}><Timetable /></ProtectedRoute>} />
-        <Route path="/daily-summary" element={<ProtectedRoute roles={[...ADMIN,"THERAPIST"]}><DailySummary /></ProtectedRoute>} />
+        <Route path="/daily-summary" element={<ProtectedRoute roles={[...ADMIN,"RECEPTIONIST"]}><DailySummary /></ProtectedRoute>} />
 
         {/* Reports */}
         <Route path="/reports" element={<ProtectedRoute roles={[...ADMIN,"FINANCE"]}><Reports /></ProtectedRoute>} />
