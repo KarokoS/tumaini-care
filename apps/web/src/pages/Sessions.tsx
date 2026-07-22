@@ -101,31 +101,47 @@ setAppointments(appts)
   }
 
   async function saveNote(e: React.FormEvent) {
-    e.preventDefault()
-    if (!selectedAppt) return
-    setSavingNote(true)
-    try {
-      const noteData = { subjective, objective, assessment, plan }
+  e.preventDefault()
+  if (!selectedAppt) return
+  setSavingNote(true)
+  try {
+    const noteData = { subjective, objective, assessment, plan }
+    let savedNote: any = null
 
-      if (selectedAppt.sessionNote?.id) {
-        await api.patch(`/sessions/${selectedAppt.sessionNote.id}`, noteData)
-      } else {
-        await api.post("/sessions", {
-          appointmentId: selectedAppt.id,
-          ...noteData
-        })
+    if (selectedAppt.sessionNote?.id) {
+      const res = await api.patch(`/sessions/${selectedAppt.sessionNote.id}`, noteData)
+      savedNote = res.data
+    } else {
+      const res = await api.post("/sessions", {
+        appointmentId: selectedAppt.id,
+        ...noteData
+      })
+      savedNote = res.data
+    }
+
+    if (markComplete && selectedAppt.status !== "COMPLETED") {
+      await api.patch(`/appointments/${selectedAppt.id}`, { status: "COMPLETED" })
+    }
+
+    // Optimistically update local state immediately
+    setAppointments(prev => prev.map(a => {
+      if (a.id !== selectedAppt.id) return a
+      return {
+        ...a,
+        status:      markComplete && a.status !== "COMPLETED" ? "COMPLETED" : a.status,
+        sessionNote: savedNote,
       }
+    }))
 
-      if (markComplete && selectedAppt.status !== "COMPLETED") {
-        await api.patch(`/appointments/${selectedAppt.id}`, { status: "COMPLETED" })
-      }
+    setShowNoteForm(false)
 
-      setShowNoteForm(false)
-      loadData()
-    } catch (err:any) {
-      alert(err.response?.data?.message ?? "Failed to save session note")
-    } finally { setSavingNote(false) }
-  }
+    // Background refresh to sync with server
+    setTimeout(() => loadData(), 1000)
+
+  } catch (err: any) {
+    alert(err.response?.data?.message ?? "Failed to save session note")
+  } finally { setSavingNote(false) }
+}
 
   const filtered = appointments.filter(a => {
     const matchSearch = (a.client?.fullName ?? "").toLowerCase().includes(search.toLowerCase()) ||
