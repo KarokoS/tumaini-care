@@ -9,6 +9,7 @@ import { Bar, Doughnut, Line } from "react-chartjs-2"
 import api from "../lib/api"
 import Layout from "../components/Layout"
 import { generateFinancialReportPDF, generateAttendanceReportPDF } from "../lib/pdf"
+import { generateAnnualReportPDF } from '../lib/pdf'
 
 ChartJS.register(
   CategoryScale, LinearScale, BarElement,
@@ -34,6 +35,35 @@ export default function Reports() {
   const [invoices,     setInvoices]     = useState<any[]>([])
   const [plans,        setPlans]        = useState<any[]>([])
   const [loading,      setLoading]      = useState(true)
+  const [reportYear, setReportYear]         = useState(new Date().getFullYear())
+  const [generatingReport, setGeneratingReport] = useState(false)
+
+  async function generateAnnualReport() {
+  setGeneratingReport(true)
+  try {
+    const from = new Date(reportYear, 0, 1)
+    const to   = new Date(reportYear, 11, 31, 23, 59, 59)
+
+    const [apptRes, assessRes] = await Promise.all([
+      api.get(`/appointments?from=${from.toISOString()}&to=${to.toISOString()}`).catch(()=>({data:[]})),
+      api.get('/assessments').catch(()=>({data:[]})),
+    ])
+
+    generateAnnualReportPDF({
+      invoices,
+      appointments: apptRes.data,
+      clients,
+      assessments:  assessRes.data,
+      period: {
+        label: `January – December ${reportYear}`,
+        from,
+        to,
+      }
+    })
+  } catch (err) {
+    alert("Failed to generate report")
+  } finally { setGeneratingReport(false) }
+}
 
   useEffect(() => {
     Promise.all([
@@ -161,7 +191,33 @@ export default function Reports() {
       x: { grid: { display: false } },
     },
   }
-
+{/* Annual Report Generator */}
+<div style={{ background:"white", border:"1px solid #d6e8e0", borderRadius:14, padding:"18px 22px", marginBottom:20, display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:14 }}>
+  <div>
+    <div style={{ fontSize:14, fontWeight:600, color:"#1a2724" }}>📄 Annual Financial & Operations Report</div>
+    <div style={{ fontSize:12.5, color:"#8aab9e", marginTop:4 }}>
+      Full multi-page PDF — cover page, executive summary, monthly revenue, clinical data, pro bono impact, sign-off
+    </div>
+  </div>
+  <div style={{ display:"flex", gap:10, alignItems:"center" }}>
+    <select
+      value={reportYear}
+      onChange={e => setReportYear(parseInt(e.target.value))}
+      style={{ padding:"8px 12px", borderRadius:8, border:"1px solid #d6e8e0", fontSize:13, cursor:"pointer" }}
+    >
+      {[2025, 2026, 2027].map(yr => (
+        <option key={yr} value={yr}>{yr}</option>
+      ))}
+    </select>
+    <button
+      onClick={generateAnnualReport}
+      disabled={generatingReport || loading}
+      style={{ padding:"9px 20px", borderRadius:8, border:"none", background:generatingReport?"#8aab9e":"#1a8c6e", color:"white", fontSize:13, fontWeight:500, cursor:"pointer" }}
+    >
+      {generatingReport ? "⏳ Generating..." : "⬇ Download Report"}
+    </button>
+  </div>
+</div> 
   return (
     <Layout title="Reports & Analytics">
       {loading ? (
