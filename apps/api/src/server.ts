@@ -73,14 +73,15 @@ async function start() {
 
     // Keep-alive ping — starts AFTER server is ready
     const selfUrl = 'https://tumaini-api.onrender.com'
-    setInterval(async () => {
-      try {
-        const res = await fetch(`${selfUrl}/health`)
-        fastify.log.info(`Keep-alive ping: ${res.status}`)
-      } catch (e) {
-        fastify.log.warn('Keep-alive ping failed')
-      }
-    }, 13 * 60 * 1000) // every 13 minutes
+    // Ping every 5 minutes to prevent sleep
+setInterval(async () => {
+  try {
+    const res = await fetch(`${selfUrl}/health`)
+    fastify.log.info(`Keep-alive: ${res.status}`)
+  } catch (e) {
+    fastify.log.warn('Keep-alive failed')
+  }
+}, 5 * 60 * 1000)
 
   } catch (err) {
     fastify.log.error(err)

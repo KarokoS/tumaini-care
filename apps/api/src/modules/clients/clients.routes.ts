@@ -47,7 +47,7 @@ export async function clientRoutes(fastify: FastifyInstance) {
 
   // ── Create client ──
   fastify.post('/clients', {
-    preHandler: requireRole('SUPER_ADMIN', 'MANAGER', 'RECEPTIONIST')
+  preHandler: requireRole('SUPER_ADMIN', 'MANAGER', 'RECEPTIONIST', 'THERAPIST')
   }, async (request, reply) => {
     const user = request.user as JWTPayload
     const body = createClientSchema.safeParse(request.body)
