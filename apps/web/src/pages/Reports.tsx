@@ -36,13 +36,23 @@ export default function Reports() {
   const [plans,        setPlans]        = useState<any[]>([])
   const [loading,      setLoading]      = useState(true)
   const [reportYear, setReportYear]         = useState(new Date().getFullYear())
+  const [reportFrom, setReportFrom]           = useState(`${new Date().getFullYear()}-01-01`)
+  const [reportTo, setReportTo]               = useState(`${new Date().getFullYear()}-12-31`)
   const [generatingReport, setGeneratingReport] = useState(false)
 
-  async function generateAnnualReport() {
+async function generateAnnualReport() {
+  if (!reportFrom || !reportTo) { alert("Please select a date range"); return }
   setGeneratingReport(true)
   try {
-    const from = new Date(reportYear, 0, 1)
-    const to   = new Date(reportYear, 11, 31, 23, 59, 59)
+    const from = new Date(reportFrom)
+    const to   = new Date(reportTo)
+    to.setHours(23,59,59,999)
+
+    const fromLabel = from.toLocaleDateString('en-KE',{ day:'numeric', month:'long', year:'numeric' })
+    const toLabel   = to.toLocaleDateString('en-KE',{ day:'numeric', month:'long', year:'numeric' })
+    const periodLabel = reportFrom.split('-')[0] === reportTo.split('-')[0] && reportFrom.endsWith('01-01') && reportTo.endsWith('12-31')
+      ? `January – December ${reportFrom.split('-')[0]}`
+      : `${fromLabel} to ${toLabel}`
 
     const [apptRes, assessRes] = await Promise.all([
       api.get(`/appointments?from=${from.toISOString()}&to=${to.toISOString()}`).catch(()=>({data:[]})),
@@ -54,11 +64,7 @@ export default function Reports() {
       appointments: apptRes.data,
       clients,
       assessments:  assessRes.data,
-      period: {
-        label: `January – December ${reportYear}`,
-        from,
-        to,
-      }
+      period: { label: periodLabel, from, to }
     })
   } catch (err) {
     alert("Failed to generate report")
@@ -199,31 +205,67 @@ export default function Reports() {
       ) : (
         <>
         {/* Annual Report Generator */}
-<div style={{ background:"white", border:"1px solid #d6e8e0", borderRadius:14, padding:"18px 22px", marginBottom:20, display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:14 }}>
-  <div>
-    <div style={{ fontSize:14, fontWeight:600, color:"#1a2724" }}>📄 Annual Financial & Operations Report</div>
-    <div style={{ fontSize:12.5, color:"#8aab9e", marginTop:4 }}>
-      Full multi-page PDF — cover page, executive summary, monthly revenue, clinical data, pro bono impact, sign-off
+<div style={{ background:"white", border:"1px solid #d6e8e0", borderRadius:14, padding:"18px 22px", marginBottom:20 }}>
+  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:14, marginBottom:14 }}>
+    <div>
+      <div style={{ fontSize:14, fontWeight:600, color:"#1a2724" }}>📄 Annual Financial & Operations Report</div>
+      <div style={{ fontSize:12.5, color:"#8aab9e", marginTop:4 }}>
+        Full multi-page PDF — cover page, executive summary, monthly revenue, clinical data, pro bono impact, sign-off
+      </div>
     </div>
   </div>
-  <div style={{ display:"flex", gap:10, alignItems:"center" }}>
-    <select
-      value={reportYear}
-      onChange={e => setReportYear(parseInt(e.target.value))}
-      style={{ padding:"8px 12px", borderRadius:8, border:"1px solid #d6e8e0", fontSize:13, cursor:"pointer" }}
-    >
-      {[2025, 2026, 2027].map(yr => (
-        <option key={yr} value={yr}>{yr}</option>
-      ))}
-    </select>
-    <button
-      onClick={generateAnnualReport}
-      disabled={generatingReport || loading}
-      style={{ padding:"9px 20px", borderRadius:8, border:"none", background:generatingReport?"#8aab9e":"#1a8c6e", color:"white", fontSize:13, fontWeight:500, cursor:"pointer" }}
-    >
-      {generatingReport ? "⏳ Generating..." : "⬇ Download Report"}
-    </button>
+  <div style={{ display:"flex", gap:10, alignItems:"center", flexWrap:"wrap" }}>
+    <div>
+      <label style={{ fontSize:11, color:"#8aab9e", display:"block", marginBottom:4, textTransform:"uppercase", fontWeight:600 }}>Quick select</label>
+      <select
+        value={reportYear}
+        onChange={e => {
+          const yr = parseInt(e.target.value)
+          setReportYear(yr)
+          setReportFrom(`${yr}-01-01`)
+          setReportTo(`${yr}-12-31`)
+        }}
+        style={{ padding:"8px 12px", borderRadius:8, border:"1px solid #d6e8e0", fontSize:13, cursor:"pointer" }}
+      >
+        {[2024,2025,2026,2027].map(yr => (
+          <option key={yr} value={yr}>{yr} (Full Year)</option>
+        ))}
+        <option value={0}>Custom range →</option>
+      </select>
+    </div>
+    <div>
+      <label style={{ fontSize:11, color:"#8aab9e", display:"block", marginBottom:4, textTransform:"uppercase", fontWeight:600 }}>From</label>
+      <input
+        type="date"
+        value={reportFrom}
+        onChange={e => { setReportFrom(e.target.value); setReportYear(0) }}
+        style={{ padding:"8px 12px", borderRadius:8, border:"1px solid #d6e8e0", fontSize:13, cursor:"pointer" }}
+      />
+    </div>
+    <div>
+      <label style={{ fontSize:11, color:"#8aab9e", display:"block", marginBottom:4, textTransform:"uppercase", fontWeight:600 }}>To</label>
+      <input
+        type="date"
+        value={reportTo}
+        onChange={e => { setReportTo(e.target.value); setReportYear(0) }}
+        style={{ padding:"8px 12px", borderRadius:8, border:"1px solid #d6e8e0", fontSize:13, cursor:"pointer" }}
+      />
+    </div>
+    <div style={{ alignSelf:"flex-end" }}>
+      <button
+        onClick={generateAnnualReport}
+        disabled={generatingReport || loading || !reportFrom || !reportTo}
+        style={{ padding:"9px 20px", borderRadius:8, border:"none", background:generatingReport?"#8aab9e":"#1a8c6e", color:"white", fontSize:13, fontWeight:500, cursor:"pointer" }}
+      >
+        {generatingReport ? "⏳ Generating..." : "⬇ Download Report"}
+      </button>
+    </div>
   </div>
+  {reportFrom && reportTo && (
+    <div style={{ marginTop:10, fontSize:12, color:"#1a8c6e", background:"#e6f4ef", padding:"6px 12px", borderRadius:8, display:"inline-block" }}>
+      Report will cover: {new Date(reportFrom).toLocaleDateString('en-KE',{ day:'numeric', month:'long', year:'numeric' })} — {new Date(reportTo).toLocaleDateString('en-KE',{ day:'numeric', month:'long', year:'numeric' })}
+    </div>
+  )}
 </div>
           {/* ── Summary cards ── */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 20 }}>

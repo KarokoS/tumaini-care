@@ -819,8 +819,8 @@ export function generateAnnualReportPDF(data: {
 
   // Signature blocks
   const sigBlocks = [
-    { title:"Centre Director",           name:"_______________________" },
-    { title:"Fr. Stephen Ndung'u Gitonga", name:"Chairperson, Planning Committee" },
+    { title:"Centre Manager",           name:"Mr. Samuel Karoko" },
+    { title:"Fr. Stephen Ndung'u Gitonga", name:"Centre Director" },
     { title:"Date",                       name:"_______________________" },
   ]
 

@@ -46,7 +46,7 @@ export default function ClientDetail() {
   const navigate    = useNavigate()
   const { user }    = useAuthStore()
   const isSuperAdmin = user?.role === "SUPER_ADMIN"
-  const canEdit      = user?.role === "SUPER_ADMIN" || user?.role === "MANAGER" || user?.role === "RECEPTIONIST"
+  const canEdit = user?.role === "SUPER_ADMIN" || user?.role === "MANAGER" || user?.role === "RECEPTIONIST" || user?.role === "THERAPIST"
 
   const [client, setClient]         = useState<Client | null>(null)
   const [loading, setLoading]       = useState(true)

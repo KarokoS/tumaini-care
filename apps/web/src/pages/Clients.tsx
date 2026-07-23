@@ -13,9 +13,12 @@ function errorMessage(err: unknown, fallback: string) {
 
 export default function Clients() {
   const { user }   = useAuthStore()
-  const isReadOnly = user?.role === "THERAPIST"
+  const isReadOnly = false // therapists can now add clients
   const canManage  = user?.role === "SUPER_ADMIN" || user?.role === "MANAGER"
-  const canAdd     = user?.role === "SUPER_ADMIN" || user?.role === "MANAGER" || user?.role === "RECEPTIONIST"
+  const canAdd     = user?.role === "SUPER_ADMIN" || user?.role === "MANAGER" ||
+                    user?.role === "RECEPTIONIST" || user?.role === "THERAPIST"
+  const canEdit    = user?.role === "SUPER_ADMIN" || user?.role === "MANAGER" ||
+                    user?.role === "RECEPTIONIST"
 
   const [clients, setClients]             = useState<Client[]>([])
   const [loading, setLoading]             = useState(true)
@@ -164,9 +167,11 @@ export default function Clients() {
                   <td style={{ padding:"12px 16px", textAlign:"right", position:"relative" }}>
                     <div style={{ display:"flex", gap:10, justifyContent:"flex-end", alignItems:"center" }}>
                       <a href={"/clients/"+client.id} style={{ fontSize:12, color:"#1a8c6e", fontWeight:500 }}>View</a>
-                      {!isReadOnly && canManage && (
-                        <button onClick={() => setOpenMenuId(openMenuId===client.id?null:client.id)}
-                          style={{ border:"none", background:"none", cursor:"pointer", color:"#8aab9e", fontSize:16, padding:"2px 6px" }}>⋮</button>
+                      {canEdit && (
+                        <button
+                          onClick={() => setOpenMenuId(openMenuId===client.id?null:client.id)}
+                          style={{ border:"none", background:"none", cursor:"pointer", color:"#8aab9e", fontSize:16, padding:"2px 6px" }}
+                        >⋮</button>
                       )}
                     </div>
                     {openMenuId === client.id && (
