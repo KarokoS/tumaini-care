@@ -191,7 +191,14 @@ export default function Reports() {
       x: { grid: { display: false } },
     },
   }
-{/* Annual Report Generator */}
+
+  return (
+    <Layout title="Reports & Analytics">
+      {loading ? (
+        <div style={{ textAlign: "center", padding: 60, color: "#8aab9e" }}>Loading...</div>
+      ) : (
+        <>
+        {/* Annual Report Generator */}
 <div style={{ background:"white", border:"1px solid #d6e8e0", borderRadius:14, padding:"18px 22px", marginBottom:20, display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:14 }}>
   <div>
     <div style={{ fontSize:14, fontWeight:600, color:"#1a2724" }}>📄 Annual Financial & Operations Report</div>
@@ -217,13 +224,7 @@ export default function Reports() {
       {generatingReport ? "⏳ Generating..." : "⬇ Download Report"}
     </button>
   </div>
-</div> 
-  return (
-    <Layout title="Reports & Analytics">
-      {loading ? (
-        <div style={{ textAlign: "center", padding: 60, color: "#8aab9e" }}>Loading...</div>
-      ) : (
-        <>
+</div>
           {/* ── Summary cards ── */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 20 }}>
             {[
