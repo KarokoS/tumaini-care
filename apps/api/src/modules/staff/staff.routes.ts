@@ -80,18 +80,39 @@ export async function staffRoutes(fastify: FastifyInstance) {
     return reply.send(staff)
   })
   fastify.delete("/staff/:id", {
-    preHandler: requireRole("SUPER_ADMIN", "MANAGER")
-  }, async (request, reply) => {
-    const { id } = request.params as { id: string }
-    await prisma.staff.update({
-      where: { id },
-      data: {
-        isActive: false,
-        email: `deleted_${Date.now()}_${id}@deleted.com`
-      }
-    })
-    return reply.send({ success: true })
+  preHandler: requireRole("SUPER_ADMIN", "MANAGER")
+}, async (request, reply) => {
+  const { id } = request.params as { id: string }
+
+  // Nullify therapist references in appointments to preserve history
+  await prisma.appointment.updateMany({
+    where: { therapistId: id },
+    data:  { therapistId: null }
   })
+
+  // Nullify author references in session notes
+  await prisma.sessionNote.updateMany({
+    where: { authorId: id },
+    data:  { authorId: null }
+  })
+
+  // Nullify ITP creator references
+  await prisma.iTP.updateMany({
+    where: { createdById: id },
+    data:  { createdById: null } as any
+  })
+
+  // Nullify progress log references
+  await prisma.goalProgressLog.updateMany({
+    where: { loggedById: id },
+    data:  { loggedById: null } as any
+  })
+
+  // Hard delete the staff member
+  await prisma.staff.delete({ where: { id } })
+
+  return reply.send({ success: true })
+})
 
   // ── Admin reset staff password ──
   fastify.post("/staff/:id/reset-password", {
