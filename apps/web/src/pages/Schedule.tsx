@@ -4,7 +4,7 @@ import api from '../lib/api'
 import { useAuthStore } from '../stores/auth.store'
 
 const HOURS = ['8:00','9:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00']
-const DAYS  = ['Monday','Tuesday','Wednesday','Thursday','Friday', 'Saturday', 'Sunday']
+const DAYS  = ['Monday','Tuesday','Wednesday','Thursday','Friday', 'Saturday']
 const COLORS: Record<string,string> = {
   OT:'#3b82f6', SPEECH:'#22c55e', ABA:'#a855f7',
   SENSORY:'#f97316', GROUP:'#eab308', PSYCH:'#ec4899', PHYSIO:'#0891b2',
@@ -136,11 +136,11 @@ export default function Schedule() {
   async function handleSubmit(e: React.FormEvent) {
   e.preventDefault(); setSaving(true)
   try {
-    // Validate working hours (8AM - 6PM)
+    // Validate working hours (8AM - 4PM)
     const apptDate = new Date(scheduledAt)
     const hour     = apptDate.getHours()
-    if (hour < 8 || hour >= 18) {
-      alert("Sessions can only be booked between 8:00 AM and 6:00 PM.")
+    if (hour < 8 || hour >= 16) {
+      alert("Sessions can only be booked between 8:00 AM and 4:00 PM.")
       setSaving(false)
       return
     }
@@ -170,8 +170,8 @@ export default function Schedule() {
   e.preventDefault(); setSavingRecur(true); setRecurResult(null)
   try {
     const [h] = recurStartTime.split(':').map(Number)
-    if (h < 8 || h >= 18) {
-      alert("Sessions can only be booked between 8:00 AM and 6:00 PM.")
+    if (h < 8 || h >= 16) {
+      alert("Sessions can only be booked between 8:00 AM and 4:00 PM.")
       setSavingRecur(false)
       return
     }
