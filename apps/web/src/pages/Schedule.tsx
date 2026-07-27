@@ -4,7 +4,7 @@ import api from '../lib/api'
 import { useAuthStore } from '../stores/auth.store'
 
 const HOURS = ['8:00','9:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00']
-const DAYS  = ['Monday','Tuesday','Wednesday','Thursday','Friday', 'Saturday']
+const DAYS  = ['Monday','Tuesday','Wednesday','Thursday','Friday', 'Saturday', 'Sunday']
 const COLORS: Record<string,string> = {
   OT:'#3b82f6', SPEECH:'#22c55e', ABA:'#a855f7',
   SENSORY:'#f97316', GROUP:'#eab308', PSYCH:'#ec4899', PHYSIO:'#0891b2',
@@ -110,17 +110,17 @@ export default function Schedule() {
   }
 
   function getWeekDates() {
-    const now    = new Date()
-    const day    = now.getDay()
-    const monday = new Date(now)
-    monday.setDate(now.getDate() - (day===0?6:day-1) + weekOffset*7)
-    monday.setHours(0,0,0,0)
-    return DAYS.map((_,i) => {
-      const d = new Date(monday)
-      d.setDate(monday.getDate()+i)
-      return d
-    })
-  }
+  const now    = new Date()
+  const day    = now.getDay()
+  const monday = new Date(now)
+  monday.setDate(now.getDate() - (day===0?6:day-1) + weekOffset*7)
+  monday.setHours(0,0,0,0)
+  return DAYS.map((_,i) => {
+    const d = new Date(monday)
+    d.setDate(monday.getDate()+i)
+    return d
+  })
+}
 
   function getApptForSlot(date: Date, hour: string) {
     const slotHour = parseInt(hour.split(':')[0])
@@ -134,15 +134,17 @@ export default function Schedule() {
   }
 
   async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault(); setSaving(true)
-    try {
-      if (editAppt) {
-        await api.patch(`/appointments/${editAppt.id}`, {
-          clientId, therapistId, therapyType,
-          scheduledAt: new Date(scheduledAt).toISOString(),
-          durationMin: parseInt(durationMin), notes, status,
-        })
-      } else {
+  e.preventDefault(); setSaving(true)
+  try {
+    // Validate working hours (8AM - 6PM)
+    const apptDate = new Date(scheduledAt)
+    const hour     = apptDate.getHours()
+    if (hour < 8 || hour >= 18) {
+      alert("Sessions can only be booked between 8:00 AM and 6:00 PM.")
+      setSaving(false)
+      return
+    }
+    if (editAppt) {
         await api.post('/appointments', {
           clientId, therapistId, therapyType,
           scheduledAt: new Date(scheduledAt).toISOString(),
@@ -165,16 +167,15 @@ export default function Schedule() {
   }
 
   async function saveRecurring(e: React.FormEvent) {
-    e.preventDefault(); setSavingRecur(true); setRecurResult(null)
-    try {
-      const res = await api.post('/appointments/recurring', {
-        clientId, therapistId, therapyType,
-        startDate: recurStartDate, startTime: recurStartTime,
-        durationMin: parseInt(durationMin),
-        pattern: recurPattern, customDays: recurDays, weeks: recurWeeks, notes,
-      })
-      setRecurResult(res.data); loadData()
-    } catch (err: unknown) {
+  e.preventDefault(); setSavingRecur(true); setRecurResult(null)
+  try {
+    const [h] = recurStartTime.split(':').map(Number)
+    if (h < 8 || h >= 18) {
+      alert("Sessions can only be booked between 8:00 AM and 6:00 PM.")
+      setSavingRecur(false)
+      return
+    }
+   } catch (err: unknown) {
       const error = err as ApiError
       alert(error.response?.data?.message ?? 'Failed to create recurring appointments')
     } finally { setSavingRecur(false) }
@@ -236,12 +237,19 @@ export default function Schedule() {
             <thead>
               <tr>
                 <th style={{ width:60, padding:'10px 12px', borderBottom:'2px solid #d6e8e0', borderRight:'1px solid #d6e8e0', color:'#8aab9e' }}></th>
-                {weekDates.map((date,idx) => (
-                  <th key={idx} style={{ padding:'10px 12px', borderBottom:'2px solid #d6e8e0', borderRight:'1px solid #eee', textAlign:'center', fontWeight:600, color:date.toDateString()===todayStr?'#1a8c6e':'#1a2724', background:date.toDateString()===todayStr?'#e6f4ef':'transparent' }}>
-                    <div style={{ fontSize:13 }}>{DAYS[idx]}</div>
-                    <div style={{ fontSize:11, fontWeight:400, color:'#8aab9e' }}>{date.toLocaleDateString('en-KE',{ day:'numeric', month:'short' })}</div>
-                  </th>
-                ))}
+                {weekDates.map((date, index) => {
+  const isWeekend = date.getDay()===0 || date.getDay()===6
+  return (
+    <th key={date.toISOString()} style={{ padding:'10px 12px', borderBottom:'2px solid #d6e8e0', borderRight:'1px solid #eee', textAlign:'center', fontWeight:600,
+      color:date.toDateString()===todayStr?'#1a8c6e':'#1a2724',
+      background:date.toDateString()===todayStr?'#e6f4ef':isWeekend?'#fef9f0':'transparent'
+    }}>
+      <div style={{ fontSize:13 }}>{DAYS[index]}</div>
+      <div style={{ fontSize:11, fontWeight:400, color:'#8aab9e' }}>{date.toLocaleDateString('en-KE',{ day:'numeric', month:'short' })}</div>
+      {isWeekend && <div style={{ fontSize:9, color:'#d97706', fontWeight:600 }}>WEEKEND</div>}
+    </th>
+  )
+})}
               </tr>
             </thead>
             <tbody>
@@ -251,9 +259,12 @@ export default function Schedule() {
                     {hour}
                   </td>
                   {weekDates.map((date,dayIdx) => {
-                    const slots = getApptForSlot(date, hour)
+                    const slots    = getApptForSlot(date, hour)
+                    const isWeekend = date.getDay()===0 || date.getDay()===6
                     return (
-                      <td key={dayIdx} style={{ padding:4, borderBottom:'1px solid #f0f4f2', borderRight:'1px solid #f0f4f2', minWidth:130, verticalAlign:'top', height:48, background:date.toDateString()===todayStr?'#f8fdf9':'white' }}>
+    <td key={dayIdx} style={{ padding:4, borderBottom:'1px solid #f0f4f2', borderRight:'1px solid #f0f4f2', minWidth:130, verticalAlign:'top', height:48,
+      background:date.toDateString()===todayStr?'#f8fdf9':isWeekend?'#fffbeb':'white'
+    }}>
                         {slots.map(appt => {
                           const color = COLORS[appt.therapyType]??'#8aab9e'
                           return (
