@@ -129,39 +129,35 @@ export async function staffRoutes(fastify: FastifyInstance) {
   })
 
   // ── Admin edit staff details ──
-  fastify.put("/staff/:id", {
-    preHandler: requireRole("SUPER_ADMIN","MANAGER")
-  }, async (request, reply) => {
-    const { id } = request.params as { id: string }
-    const body   = request.body as any
-    const data: any = {}
+  fastify.delete("/staff/:id", {
+  preHandler: requireRole("SUPER_ADMIN", "MANAGER")
+}, async (request, reply) => {
+  const { id } = request.params as { id: string }
 
-    if (body.fullName)                       data.fullName    = body.fullName
-    if (body.phone !== undefined)            data.phone       = body.phone
-    if (body.role)                           data.role        = body.role
-    if (body.specialty !== undefined)        data.specialty   = body.specialty
-    if (typeof body.isTrainee === "boolean") data.isTrainee   = body.isTrainee
-    if (body.institution !== undefined)      data.institution = body.institution
-
-    // Allow email update with duplicate check
-    if (body.email && body.email !== '') {
-      const existing = await prisma.staff.findFirst({
-        where: { email: body.email.toLowerCase().trim(), NOT: { id } }
-      })
-      if (existing) {
-        return reply.status(400).send({ message: 'Email already in use by another staff member' })
-      }
-      data.email = body.email.toLowerCase().trim()
-    }
-
-    const staff = await prisma.staff.update({
-      where: { id },
-      data,
-      select: {
-        id:true, fullName:true, email:true, role:true, specialty:true,
-        phone:true, isActive:true, isTrainee:true, institution:true,
-      }
-    })
-    return reply.send(staff)
+  // Nullify references in related records to preserve history
+  await prisma.sessionNote.updateMany({
+    where: { authorId: id },
+    data:  { authorId: null }
   })
+
+  await prisma.appointment.updateMany({
+    where: { therapistId: id },
+    data:  { therapistId: null }
+  })
+
+  await prisma.iTP.updateMany({
+    where: { createdById: id },
+    data:  { createdById: null }
+  })
+
+  await prisma.goalProgressLog.updateMany({
+    where: { loggedById: id },
+    data:  { loggedById: null }
+  })
+
+  // Hard delete
+  await prisma.staff.delete({ where: { id } })
+
+  return reply.send({ success: true })
+})
 }
