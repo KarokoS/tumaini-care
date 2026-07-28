@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs"
 import { sendWelcomeEmail } from '../../shared/email'
 
 export async function staffRoutes(fastify: FastifyInstance) {
+
   fastify.get("/staff", {
     preHandler: requireRole("SUPER_ADMIN","MANAGER","THERAPIST","RECEPTIONIST")
   }, async (request, reply) => {
@@ -15,7 +16,7 @@ export async function staffRoutes(fastify: FastifyInstance) {
         id:true, fullName:true, email:true, role:true, specialty:true,
         phone:true, isActive:true, isTrainee:true, institution:true,
       },
-      orderBy: [{ isActive: "desc" }, { fullName: "asc" }],
+      orderBy: [{ isActive:"desc" }, { fullName:"asc" }],
     })
     return reply.send(staff)
   })
@@ -32,15 +33,15 @@ export async function staffRoutes(fastify: FastifyInstance) {
     const pwHash = await bcrypt.hash(body.password, 12)
     const staff = await prisma.staff.create({
       data: {
-        fullName: body.fullName,
-        email: body.email.toLowerCase().trim(),
-        role: body.role,
-        specialty: body.specialty || null,
-        phone: body.phone || null,
-        isTrainee: body.isTrainee ?? false,
+        fullName:    body.fullName,
+        email:       body.email.toLowerCase().trim(),
+        role:        body.role,
+        specialty:   body.specialty || null,
+        phone:       body.phone || null,
+        isTrainee:   body.isTrainee ?? false,
         institution: body.institution || null,
         pwHash,
-        branchId: user.branchId,
+        branchId:    user.branchId,
       },
       select: {
         id:true, fullName:true, email:true, role:true, specialty:true,
@@ -48,10 +49,10 @@ export async function staffRoutes(fastify: FastifyInstance) {
       },
     })
     try {
-  await sendWelcomeEmail(body.email, body.fullName, body.password)
-} catch (err) {
-  fastify.log.warn({ err: String(err) }, 'Welcome email failed to send')
-}
+      await sendWelcomeEmail(body.email, body.fullName, body.password)
+    } catch (err) {
+      fastify.log.warn({ err: String(err) }, 'Welcome email failed to send')
+    }
     return reply.status(201).send(staff)
   })
 
@@ -59,16 +60,15 @@ export async function staffRoutes(fastify: FastifyInstance) {
     preHandler: requireRole("SUPER_ADMIN","MANAGER")
   }, async (request, reply) => {
     const { id } = request.params as { id: string }
-    const body = request.body as any
+    const body   = request.body as any
     const data: any = {}
-    if (typeof body.isActive === "boolean") data.isActive = body.isActive
-    if (body.fullName) data.fullName = body.fullName
-    if (body.phone !== undefined) data.phone = body.phone
-    if (body.specialty !== undefined) data.specialty = body.specialty
-    if (body.role) data.role = body.role
-    if (typeof body.isTrainee === "boolean") data.isTrainee = body.isTrainee
-    if (body.institution !== undefined) data.institution = body.institution
-
+    if (typeof body.isActive === "boolean") data.isActive    = body.isActive
+    if (body.fullName)                      data.fullName    = body.fullName
+    if (body.phone !== undefined)           data.phone       = body.phone
+    if (body.specialty !== undefined)       data.specialty   = body.specialty
+    if (body.role)                          data.role        = body.role
+    if (typeof body.isTrainee === "boolean") data.isTrainee  = body.isTrainee
+    if (body.institution !== undefined)     data.institution = body.institution
     const staff = await prisma.staff.update({
       where: { id },
       data,
@@ -79,44 +79,41 @@ export async function staffRoutes(fastify: FastifyInstance) {
     })
     return reply.send(staff)
   })
-  fastify.delete("/staff/:id", {
-  preHandler: requireRole("SUPER_ADMIN", "MANAGER")
-}, async (request, reply) => {
-  const { id } = request.params as { id: string }
 
-  // Nullify therapist references in appointments to preserve history
-  await prisma.appointment.updateMany({
-    where: { therapistId: id },
-    data:  { therapistId: null }
+  fastify.put("/staff/:id", {
+    preHandler: requireRole("SUPER_ADMIN","MANAGER")
+  }, async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const body   = request.body as any
+    const data: any = {}
+    if (body.fullName)                       data.fullName    = body.fullName
+    if (body.phone !== undefined)            data.phone       = body.phone
+    if (body.role)                           data.role        = body.role
+    if (body.specialty !== undefined)        data.specialty   = body.specialty
+    if (typeof body.isTrainee === "boolean") data.isTrainee   = body.isTrainee
+    if (body.institution !== undefined)      data.institution = body.institution
+    if (body.email && body.email !== '') {
+      const existing = await prisma.staff.findFirst({
+        where: { email: body.email.toLowerCase().trim(), NOT: { id } }
+      })
+      if (existing) {
+        return reply.status(400).send({ message: 'Email already in use by another staff member' })
+      }
+      data.email = body.email.toLowerCase().trim()
+    }
+    const staff = await prisma.staff.update({
+      where: { id },
+      data,
+      select: {
+        id:true, fullName:true, email:true, role:true, specialty:true,
+        phone:true, isActive:true, isTrainee:true, institution:true,
+      }
+    })
+    return reply.send(staff)
   })
 
-  // Nullify author references in session notes
-  await prisma.sessionNote.updateMany({
-    where: { authorId: id },
-    data:  { authorId: null }
-  })
-
-  // Nullify ITP creator references
-  await prisma.iTP.updateMany({
-    where: { createdById: id },
-    data:  { createdById: null } as any
-  })
-
-  // Nullify progress log references
-  await prisma.goalProgressLog.updateMany({
-    where: { loggedById: id },
-    data:  { loggedById: null } as any
-  })
-
-  // Hard delete the staff member
-  await prisma.staff.delete({ where: { id } })
-
-  return reply.send({ success: true })
-})
-
-  // ── Admin reset staff password ──
   fastify.post("/staff/:id/reset-password", {
-    preHandler: requireRole("SUPER_ADMIN", "MANAGER")
+    preHandler: requireRole("SUPER_ADMIN","MANAGER")
   }, async (request, reply) => {
     const { id }          = request.params as { id: string }
     const { newPassword } = request.body as { newPassword: string }
@@ -128,36 +125,29 @@ export async function staffRoutes(fastify: FastifyInstance) {
     return reply.send({ success: true })
   })
 
-  // ── Admin edit staff details ──
   fastify.delete("/staff/:id", {
-  preHandler: requireRole("SUPER_ADMIN", "MANAGER")
-}, async (request, reply) => {
-  const { id } = request.params as { id: string }
+    preHandler: requireRole("SUPER_ADMIN","MANAGER")
+  }, async (request, reply) => {
+    const { id } = request.params as { id: string }
 
-  // Nullify references in related records to preserve history
-  await prisma.sessionNote.updateMany({
-    where: { authorId: id },
-    data:  { authorId: null }
+    await prisma.sessionNote.updateMany({
+      where: { authorId: id },
+      data:  { authorId: null }
+    })
+    await prisma.appointment.updateMany({
+      where: { therapistId: id },
+      data:  { therapistId: null }
+    })
+    await prisma.iTP.updateMany({
+      where: { createdById: id },
+      data:  { createdById: null }
+    })
+    await prisma.goalProgressLog.updateMany({
+      where: { loggedById: id },
+      data:  { loggedById: null }
+    })
+    await prisma.staff.delete({ where: { id } })
+
+    return reply.send({ success: true })
   })
-
-  await prisma.appointment.updateMany({
-    where: { therapistId: id },
-    data:  { therapistId: null }
-  })
-
-  await prisma.iTP.updateMany({
-    where: { createdById: id },
-    data:  { createdById: null }
-  })
-
-  await prisma.goalProgressLog.updateMany({
-    where: { loggedById: id },
-    data:  { loggedById: null }
-  })
-
-  // Hard delete
-  await prisma.staff.delete({ where: { id } })
-
-  return reply.send({ success: true })
-})
 }

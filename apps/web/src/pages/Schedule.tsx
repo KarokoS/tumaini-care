@@ -134,13 +134,15 @@ export default function Schedule() {
   }
 
   async function handleSubmit(e: React.FormEvent) {
-  e.preventDefault(); setSaving(true)
+  e.preventDefault()
+  if (saving) return  // prevent double submit
+  setSaving(true)
   try {
     // Validate working hours (8AM - 4PM)
     const apptDate = new Date(scheduledAt)
     const hour     = apptDate.getHours()
-    if (hour < 8 || hour >= 16) {
-      alert("Sessions can only be booked between 8:00 AM and 4:00 PM.")
+    if (hour < 8 || hour >= 17) {
+    alert("Sessions can only be booked between 8:00 AM and 5:00 PM.")
       setSaving(false)
       return
     }
@@ -165,6 +167,13 @@ export default function Schedule() {
     } catch (err) { alert(errorMessage(err,'Failed to delete appointment')) }
     finally { setDeleting(false) }
   }
+
+  function isBreakSlot(hour: string): { isBreak: boolean; label: string } {
+  const h = parseInt(hour)
+  if (h === 10) return { isBreak: true, label: "☕ Tea Break" }
+  if (h === 13) return { isBreak: true, label: "🍽 Lunch Break" }
+  return { isBreak: false, label: "" }
+}
 
   async function saveRecurring(e: React.FormEvent) {
   e.preventDefault(); setSavingRecur(true); setRecurResult(null)
@@ -258,31 +267,46 @@ export default function Schedule() {
                   <td style={{ padding:'6px 10px', borderBottom:'1px solid #f0f4f2', borderRight:'1px solid #d6e8e0', color:'#8aab9e', fontSize:11, whiteSpace:'nowrap', verticalAlign:'top', fontWeight:500 }}>
                     {hour}
                   </td>
-                  {weekDates.map((date,dayIdx) => {
-                    const slots    = getApptForSlot(date, hour)
-                    const isWeekend = date.getDay()===0 || date.getDay()===6
-                    return (
-    <td key={dayIdx} style={{ padding:4, borderBottom:'1px solid #f0f4f2', borderRight:'1px solid #f0f4f2', minWidth:130, verticalAlign:'top', height:48,
-      background:date.toDateString()===todayStr?'#f8fdf9':isWeekend?'#fffbeb':'white'
+                  {weekDates.map((date, dayIdx) => {
+  const slots     = getApptForSlot(date, hour)
+  const isWeekend = date.getDay()===0 || date.getDay()===6
+  const breakInfo = isBreakSlot(hour)
+  return (
+    <td key={dayIdx} style={{
+      padding:4,
+      borderBottom:'1px solid #f0f4f2',
+      borderRight:'1px solid #f0f4f2',
+      minWidth:130,
+      verticalAlign:'top',
+      height:48,
+      background: breakInfo.isBreak
+        ? '#f8faf9'
+        : date.toDateString()===todayStr
+        ? '#f8fdf9'
+        : isWeekend ? '#fffbeb' : 'white'
     }}>
-                        {slots.map(appt => {
-                          const color = COLORS[appt.therapyType]??'#8aab9e'
-                          return (
-                            <div key={appt.id}
-                              onClick={() => setSelectedAppt(selectedAppt?.id===appt.id?null:appt)}
-                              style={{ background:color+'22', border:'1px solid '+color+'66', borderRadius:6, padding:'4px 7px', marginBottom:3, cursor:'pointer' }}>
-                              <div style={{ fontWeight:600, color, fontSize:11 }}>
-                                {appt.client?.fullName ?? 'Client'}
-                                {appt.isRecurring && <span style={{ marginLeft:4, fontSize:9 }}>🔁</span>}
-                              </div>
-                              <div style={{ fontSize:10, color:'#4a6359' }}>{appt.therapyType} · {appt.therapist?.fullName ?? 'Unassigned'}</div>
-                              <div style={{ fontSize:9, marginTop:2, color:STATUS_COLORS[appt.status]??'#8aab9e', fontWeight:600 }}>{appt.status}</div>
-                            </div>
-                          )
-                        })}
-                      </td>
-                    )
-                  })}
+      {breakInfo.isBreak && slots.length === 0 ? (
+        <div style={{ height:'100%', display:'flex', alignItems:'center', justifyContent:'center' }}>
+          <span style={{ fontSize:10, color:'#8aab9e', fontWeight:500 }}>{breakInfo.label}</span>
+        </div>
+      ) : slots.map(appt => {
+        const color = COLORS[appt.therapyType]??'#8aab9e'
+        return (
+          <div key={appt.id}
+            onClick={() => setSelectedAppt(selectedAppt?.id===appt.id?null:appt)}
+            style={{ background:color+'22', border:'1px solid '+color+'66', borderRadius:6, padding:'4px 7px', marginBottom:3, cursor:'pointer' }}>
+            <div style={{ fontWeight:600, color, fontSize:11 }}>
+              {appt.client?.fullName??'Client'}
+              {appt.isRecurring && <span style={{ marginLeft:4, fontSize:9 }}>🔁</span>}
+            </div>
+            <div style={{ fontSize:10, color:'#4a6359' }}>{appt.therapyType}·{appt.therapist?.fullName??'Unassigned'}</div>
+            <div style={{ fontSize:9, marginTop:2, color:STATUS_COLORS[appt.status]??'#8aab9e', fontWeight:600 }}>{appt.status}</div>
+          </div>
+        )
+      })}
+    </td>
+  )
+})}   
                 </tr>
               ))}
             </tbody>
