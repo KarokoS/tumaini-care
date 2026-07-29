@@ -45,7 +45,7 @@ export default function Schedule() {
   const isTherapist = user?.role === "THERAPIST"
 
   const [appointments, setAppointments] = useState<Appointment[]>([])
-  const [clients, setClients]           = useState<Client[]>([])
+  const [clients, setClients] = useState<any[]>([])
   const [staff, setStaff]               = useState<StaffMember[]>([])
   const [loading, setLoading]           = useState(true)
   const [showForm, setShowForm]         = useState(false)
@@ -80,10 +80,11 @@ export default function Schedule() {
       api.get('/appointments').catch(() => ({ data: [] })),
       api.get('/clients').catch(() => ({ data: [] })),
       api.get('/staff').catch(() => ({ data: [] })),
-    ]).then(([a, c, s]: [ApiListResponse<Appointment>, ApiListResponse<Client>, ApiListResponse<StaffMember>]) => {
+    ]).then(([a, c, s]: any) => {
+      console.log("Clients loaded:", c.data?.length, c.data?.[0])
       setAppointments(a.data)
-      setClients(c.data)
-      setStaff(s.data)
+      setClients(c.data ?? [])
+      setStaff(s.data ?? [])
     }).finally(() => setLoading(false))
   }
 

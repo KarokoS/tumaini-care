@@ -126,28 +126,33 @@ export async function staffRoutes(fastify: FastifyInstance) {
   })
 
   fastify.delete("/staff/:id", {
-    preHandler: requireRole("SUPER_ADMIN","MANAGER")
-  }, async (request, reply) => {
-    const { id } = request.params as { id: string }
+  preHandler: requireRole("SUPER_ADMIN","MANAGER")
+}, async (request, reply) => {
+  const { id } = request.params as { id: string }
 
-    await prisma.sessionNote.updateMany({
-      where: { authorId: id },
-      data:  { authorId: null }
-    })
-    await prisma.appointment.updateMany({
-      where: { therapistId: id },
-      data:  { therapistId: null }
-    })
-    await prisma.iTP.updateMany({
-      where: { createdById: id },
-      data:  { createdById: null }
-    })
-    await prisma.goalProgressLog.updateMany({
-      where: { loggedById: id },
-      data:  { loggedById: null }
-    })
-    await prisma.staff.delete({ where: { id } })
-
-    return reply.send({ success: true })
+  await prisma.sessionNote.updateMany({
+    where: { authorId: id },
+    data:  { authorId: null }
   })
+  await prisma.appointment.updateMany({
+    where: { therapistId: id },
+    data:  { therapistId: null }
+  })
+  await prisma.iTP.updateMany({
+    where: { createdById: id },
+    data:  { createdById: null }
+  })
+  await prisma.goalProgressLog.updateMany({
+    where: { loggedById: id },
+    data:  { loggedById: null }
+  })
+  // Clear audit log references
+  await prisma.auditLog.updateMany({
+    where: { staffId: id },
+    data:  { staffId: null } as any
+  })
+  await prisma.staff.delete({ where: { id } })
+
+  return reply.send({ success: true })
+})
 }
