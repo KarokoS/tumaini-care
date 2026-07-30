@@ -4,7 +4,7 @@ import api from '../lib/api'
 import { useAuthStore } from '../stores/auth.store'
 
 const HOURS = ['8:00','9:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00']
-const DAYS  = ['Monday','Tuesday','Wednesday','Thursday','Friday', 'Saturday']
+const DAYS  = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
 const COLORS: Record<string,string> = {
   OT:'#3b82f6', SPEECH:'#22c55e', ABA:'#a855f7',
   SENSORY:'#f97316', GROUP:'#eab308', PSYCH:'#ec4899', PHYSIO:'#0891b2',
@@ -19,24 +19,17 @@ type Appointment = {
   therapist?: { id: string; fullName: string } | null
   isRecurring?: boolean
 }
-type RecurringResult = {
-  count: number
-  first?: string | null
-  last?: string | null
-}
-type ApiListResponse<T> = { data: T[] }
-type ApiError = {
-  response?: {
-    data?: {
-      message?: string
-      error?: string
-    }
-  }
-}
 
 function errorMessage(err: unknown, fallback: string) {
-  const r = (err as ApiError | undefined)?.response?.data
+  const r = (err as any)?.response?.data
   return r?.message ?? r?.error ?? fallback
+}
+
+function isBreakSlot(hour: string): { isBreak: boolean; label: string } {
+  const h = parseInt(hour)
+  if (h === 10) return { isBreak: true, label: "☕ Tea Break" }
+  if (h === 13) return { isBreak: true, label: "🍽 Lunch Break" }
+  return { isBreak: false, label: "" }
 }
 
 export default function Schedule() {
@@ -45,7 +38,7 @@ export default function Schedule() {
   const isTherapist = user?.role === "THERAPIST"
 
   const [appointments, setAppointments] = useState<Appointment[]>([])
-  const [clients, setClients] = useState<any[]>([])
+  const [clients, setClients]           = useState<Client[]>([])
   const [staff, setStaff]               = useState<StaffMember[]>([])
   const [loading, setLoading]           = useState(true)
   const [showForm, setShowForm]         = useState(false)
@@ -61,7 +54,7 @@ export default function Schedule() {
   const [recurStartDate, setRecurStartDate] = useState('')
   const [recurStartTime, setRecurStartTime] = useState('09:00')
   const [recurWeeks, setRecurWeeks]         = useState(12)
-  const [recurResult, setRecurResult]       = useState<RecurringResult | null>(null)
+  const [recurResult, setRecurResult]       = useState<any>(null)
   const [savingRecur, setSavingRecur]       = useState(false)
 
   const [clientId,    setClientId]    = useState('')
@@ -77,12 +70,11 @@ export default function Schedule() {
   function loadData() {
     setLoading(true)
     Promise.all([
-      api.get('/appointments').catch(() => ({ data: [] })),
-      api.get('/clients').catch(() => ({ data: [] })),
-      api.get('/staff').catch(() => ({ data: [] })),
+      api.get('/appointments').catch((): any => ({ data:[] })),
+      api.get('/clients').catch(():    any => ({ data:[] })),
+      api.get('/staff').catch(():      any => ({ data:[] })),
     ]).then(([a, c, s]: any) => {
-      console.log("Clients loaded:", c.data?.length, c.data?.[0])
-      setAppointments(a.data)
+      setAppointments(a.data ?? [])
       setClients(c.data ?? [])
       setStaff(s.data ?? [])
     }).finally(() => setLoading(false))
@@ -110,20 +102,20 @@ export default function Schedule() {
     setShowForm(true)
   }
 
-  function getWeekDates() {
-  const now    = new Date()
-  const day    = now.getDay()
-  const monday = new Date(now)
-  monday.setDate(now.getDate() - (day===0?6:day-1) + weekOffset*7)
-  monday.setHours(0,0,0,0)
-  return DAYS.map((_,i) => {
-    const d = new Date(monday)
-    d.setDate(monday.getDate()+i)
-    return d
-  })
-}
+  function getWeekDates(): Date[] {
+    const now    = new Date()
+    const day    = now.getDay()
+    const monday = new Date(now)
+    monday.setDate(now.getDate() - (day===0?6:day-1) + weekOffset*7)
+    monday.setHours(0,0,0,0)
+    return DAYS.map((_,i) => {
+      const d = new Date(monday)
+      d.setDate(monday.getDate()+i)
+      return d
+    })
+  }
 
-  function getApptForSlot(date: Date, hour: string) {
+  function getApptForSlot(date: Date, hour: string): Appointment[] {
     const slotHour = parseInt(hour.split(':')[0])
     return appointments.filter(a => {
       const d = new Date(a.scheduledAt)
@@ -135,28 +127,47 @@ export default function Schedule() {
   }
 
   async function handleSubmit(e: React.FormEvent) {
-  e.preventDefault()
-  if (saving) return  // prevent double submit
-  setSaving(true)
-  try {
-    // Validate working hours (8AM - 4PM)
-    const apptDate = new Date(scheduledAt)
-    const hour     = apptDate.getHours()
-    if (hour < 8 || hour >= 17) {
-    alert("Sessions can only be booked between 8:00 AM and 5:00 PM.")
-      setSaving(false)
-      return
-    }
-    if (editAppt) {
-        await api.post('/appointments', {
-          clientId, therapistId, therapyType,
+    e.preventDefault()
+    if (saving) return
+    setSaving(true)
+    try {
+      // Validate working hours
+      const apptDate = new Date(scheduledAt)
+      const hour     = apptDate.getHours()
+      if (hour < 8 || hour >= 17) {
+        alert("Sessions can only be booked between 8:00 AM and 5:00 PM.")
+        setSaving(false)
+        return
+      }
+
+      if (editAppt) {
+        // UPDATE existing appointment
+        await api.patch(`/appointments/${editAppt.id}`, {
+          clientId,
+          therapistId: therapistId || null,
+          therapyType,
           scheduledAt: new Date(scheduledAt).toISOString(),
-          durationMin: parseInt(durationMin), notes,
+          durationMin: parseInt(durationMin),
+          notes,
+          status,
+        })
+      } else {
+        // CREATE new appointment
+        await api.post('/appointments', {
+          clientId,
+          therapistId: therapistId || null,
+          therapyType,
+          scheduledAt: new Date(scheduledAt).toISOString(),
+          durationMin: parseInt(durationMin),
+          notes,
         })
       }
-      setShowForm(false); loadData()
-    } catch (err) { alert(errorMessage(err,'Failed to save appointment')) }
-    finally { setSaving(false) }
+      setShowForm(false)
+      setEditAppt(null)
+      loadData()
+    } catch (err) {
+      alert(errorMessage(err, 'Failed to save appointment'))
+    } finally { setSaving(false) }
   }
 
   async function deleteAppt() {
@@ -165,29 +176,30 @@ export default function Schedule() {
     try {
       await api.delete(`/appointments/${confirmDelete.id}`)
       setConfirmDelete(null); setSelectedAppt(null); loadData()
-    } catch (err) { alert(errorMessage(err,'Failed to delete appointment')) }
+    } catch (err) { alert(errorMessage(err, 'Failed to delete appointment')) }
     finally { setDeleting(false) }
   }
 
-  function isBreakSlot(hour: string): { isBreak: boolean; label: string } {
-  const h = parseInt(hour)
-  if (h === 10) return { isBreak: true, label: "☕ Tea Break" }
-  if (h === 13) return { isBreak: true, label: "🍽 Lunch Break" }
-  return { isBreak: false, label: "" }
-}
-
   async function saveRecurring(e: React.FormEvent) {
-  e.preventDefault(); setSavingRecur(true); setRecurResult(null)
-  try {
-    const [h] = recurStartTime.split(':').map(Number)
-    if (h < 8 || h >= 16) {
-      alert("Sessions can only be booked between 8:00 AM and 4:00 PM.")
-      setSavingRecur(false)
-      return
-    }
-   } catch (err: unknown) {
-      const error = err as ApiError
-      alert(error.response?.data?.message ?? 'Failed to create recurring appointments')
+    e.preventDefault()
+    if (savingRecur) return
+    setSavingRecur(true); setRecurResult(null)
+    try {
+      const [h] = recurStartTime.split(':').map(Number)
+      if (h < 8 || h >= 17) {
+        alert("Sessions can only be booked between 8:00 AM and 5:00 PM.")
+        setSavingRecur(false)
+        return
+      }
+      const res = await api.post('/appointments/recurring', {
+        clientId, therapistId: therapistId||null, therapyType,
+        startDate: recurStartDate, startTime: recurStartTime,
+        durationMin: parseInt(durationMin),
+        pattern: recurPattern, customDays: recurDays, weeks: recurWeeks, notes,
+      })
+      setRecurResult(res.data); loadData()
+    } catch (err: any) {
+      alert(err.response?.data?.message ?? 'Failed to create recurring appointments')
     } finally { setSavingRecur(false) }
   }
 
@@ -248,68 +260,60 @@ export default function Schedule() {
               <tr>
                 <th style={{ width:60, padding:'10px 12px', borderBottom:'2px solid #d6e8e0', borderRight:'1px solid #d6e8e0', color:'#8aab9e' }}></th>
                 {weekDates.map((date, index) => {
-  const isWeekend = date.getDay()===0 || date.getDay()===6
-  return (
-    <th key={date.toISOString()} style={{ padding:'10px 12px', borderBottom:'2px solid #d6e8e0', borderRight:'1px solid #eee', textAlign:'center', fontWeight:600,
-      color:date.toDateString()===todayStr?'#1a8c6e':'#1a2724',
-      background:date.toDateString()===todayStr?'#e6f4ef':isWeekend?'#fef9f0':'transparent'
-    }}>
-      <div style={{ fontSize:13 }}>{DAYS[index]}</div>
-      <div style={{ fontSize:11, fontWeight:400, color:'#8aab9e' }}>{date.toLocaleDateString('en-KE',{ day:'numeric', month:'short' })}</div>
-      {isWeekend && <div style={{ fontSize:9, color:'#d97706', fontWeight:600 }}>WEEKEND</div>}
-    </th>
-  )
-})}
+                  const isWeekend = date.getDay()===0||date.getDay()===6
+                  return (
+                    <th key={index} style={{ padding:'10px 12px', borderBottom:'2px solid #d6e8e0', borderRight:'1px solid #eee', textAlign:'center', fontWeight:600,
+                      color:date.toDateString()===todayStr?'#1a8c6e':'#1a2724',
+                      background:date.toDateString()===todayStr?'#e6f4ef':isWeekend?'#fef9f0':'transparent'
+                    }}>
+                      <div style={{ fontSize:13 }}>{DAYS[index]}</div>
+                      <div style={{ fontSize:11, fontWeight:400, color:'#8aab9e' }}>{date.toLocaleDateString('en-KE',{ day:'numeric', month:'short' })}</div>
+                      {isWeekend && <div style={{ fontSize:9, color:'#d97706', fontWeight:600 }}>WEEKEND</div>}
+                    </th>
+                  )
+                })}
               </tr>
             </thead>
             <tbody>
-              {HOURS.map(hour => (
-                <tr key={hour}>
-                  <td style={{ padding:'6px 10px', borderBottom:'1px solid #f0f4f2', borderRight:'1px solid #d6e8e0', color:'#8aab9e', fontSize:11, whiteSpace:'nowrap', verticalAlign:'top', fontWeight:500 }}>
-                    {hour}
-                  </td>
-                  {weekDates.map((date, dayIdx) => {
-  const slots     = getApptForSlot(date, hour)
-  const isWeekend = date.getDay()===0 || date.getDay()===6
-  const breakInfo = isBreakSlot(hour)
-  return (
-    <td key={dayIdx} style={{
-      padding:4,
-      borderBottom:'1px solid #f0f4f2',
-      borderRight:'1px solid #f0f4f2',
-      minWidth:130,
-      verticalAlign:'top',
-      height:48,
-      background: breakInfo.isBreak
-        ? '#f8faf9'
-        : date.toDateString()===todayStr
-        ? '#f8fdf9'
-        : isWeekend ? '#fffbeb' : 'white'
-    }}>
-      {breakInfo.isBreak && slots.length === 0 ? (
-        <div style={{ height:'100%', display:'flex', alignItems:'center', justifyContent:'center' }}>
-          <span style={{ fontSize:10, color:'#8aab9e', fontWeight:500 }}>{breakInfo.label}</span>
-        </div>
-      ) : slots.map(appt => {
-        const color = COLORS[appt.therapyType]??'#8aab9e'
-        return (
-          <div key={appt.id}
-            onClick={() => setSelectedAppt(selectedAppt?.id===appt.id?null:appt)}
-            style={{ background:color+'22', border:'1px solid '+color+'66', borderRadius:6, padding:'4px 7px', marginBottom:3, cursor:'pointer' }}>
-            <div style={{ fontWeight:600, color, fontSize:11 }}>
-              {appt.client?.fullName??'Client'}
-              {appt.isRecurring && <span style={{ marginLeft:4, fontSize:9 }}>🔁</span>}
-            </div>
-            <div style={{ fontSize:10, color:'#4a6359' }}>{appt.therapyType}·{appt.therapist?.fullName??'Unassigned'}</div>
-            <div style={{ fontSize:9, marginTop:2, color:STATUS_COLORS[appt.status]??'#8aab9e', fontWeight:600 }}>{appt.status}</div>
-          </div>
-        )
-      })}
-    </td>
-  )
-})}   
-                </tr>
-              ))}
+              {HOURS.map(hour => {
+                const breakInfo = isBreakSlot(hour)
+                return (
+                  <tr key={hour}>
+                    <td style={{ padding:'6px 10px', borderBottom:'1px solid #f0f4f2', borderRight:'1px solid #d6e8e0', color:'#8aab9e', fontSize:11, whiteSpace:'nowrap', verticalAlign:'top', fontWeight:500 }}>
+                      {hour}
+                    </td>
+                    {weekDates.map((date, dayIdx) => {
+                      const slots     = getApptForSlot(date, hour)
+                      const isWeekend = date.getDay()===0||date.getDay()===6
+                      return (
+                        <td key={dayIdx} style={{ padding:4, borderBottom:'1px solid #f0f4f2', borderRight:'1px solid #f0f4f2', minWidth:130, verticalAlign:'top', height:48,
+                          background: breakInfo.isBreak?'#f8faf9':date.toDateString()===todayStr?'#f8fdf9':isWeekend?'#fffbeb':'white'
+                        }}>
+                          {breakInfo.isBreak && slots.length===0 ? (
+                            <div style={{ height:'100%', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                              <span style={{ fontSize:10, color:'#8aab9e', fontWeight:500 }}>{breakInfo.label}</span>
+                            </div>
+                          ) : slots.map(appt => {
+                            const color = COLORS[appt.therapyType]??'#8aab9e'
+                            return (
+                              <div key={appt.id}
+                                onClick={() => setSelectedAppt(selectedAppt?.id===appt.id?null:appt)}
+                                style={{ background:color+'22', border:'1px solid '+color+'66', borderRadius:6, padding:'4px 7px', marginBottom:3, cursor:'pointer' }}>
+                                <div style={{ fontWeight:600, color, fontSize:11 }}>
+                                  {appt.client?.fullName??'Client'}
+                                  {appt.isRecurring&&<span style={{ marginLeft:4, fontSize:9 }}>🔁</span>}
+                                </div>
+                                <div style={{ fontSize:10, color:'#4a6359' }}>{appt.therapyType}·{appt.therapist?.fullName??'Unassigned'}</div>
+                                <div style={{ fontSize:9, marginTop:2, color:STATUS_COLORS[appt.status]??'#8aab9e', fontWeight:600 }}>{appt.status}</div>
+                              </div>
+                            )
+                          })}
+                        </td>
+                      )
+                    })}
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
@@ -329,14 +333,13 @@ export default function Schedule() {
             <div><strong style={{ color:'#1a2724' }}>Time:</strong> {new Date(selectedAppt.scheduledAt).toLocaleString('en-KE',{ weekday:'short', day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })}</div>
             <div><strong style={{ color:'#1a2724' }}>Duration:</strong> {selectedAppt.durationMin} min</div>
             <div><strong style={{ color:'#1a2724' }}>Status:</strong> <span style={{ color:STATUS_COLORS[selectedAppt.status]??'#8aab9e', fontWeight:600 }}>{selectedAppt.status}</span></div>
-            {selectedAppt.notes && <div><strong style={{ color:'#1a2724' }}>Notes:</strong> {selectedAppt.notes}</div>}
+            {selectedAppt.notes&&<div><strong style={{ color:'#1a2724' }}>Notes:</strong> {selectedAppt.notes}</div>}
           </div>
-          <a href={`/sessions?apptId=${selectedAppt.id}`}
-  style={{ display:"block", marginTop:10, padding:"8px 14px", borderRadius:8, background:"#7c3aed", color:"white", fontSize:12.5, fontWeight:500, textDecoration:"none", textAlign:"center" }}>
-  ✏️ Write Session Note
-</a>
+          <a href="/sessions" style={{ display:"block", marginTop:10, padding:"7px 14px", borderRadius:8, background:"#7c3aed", color:"white", fontSize:12.5, fontWeight:500, textDecoration:"none", textAlign:"center" }}>
+            ✏️ Write Session Note
+          </a>
           {!isReadOnly ? (
-            <div style={{ display:'flex', gap:8, marginTop:14 }}>
+            <div style={{ display:'flex', gap:8, marginTop:8 }}>
               <button onClick={() => openEdit(selectedAppt)}
                 style={{ flex:1, padding:'7px', borderRadius:8, border:'1px solid #d6e8e0', background:'white', fontSize:12.5, cursor:'pointer', color:'#1a8c6e', fontWeight:500 }}>
                 ✏️ Edit
@@ -347,36 +350,41 @@ export default function Schedule() {
               </button>
             </div>
           ) : (
-            <div style={{ marginTop:14, padding:"8px 12px", borderRadius:8, background:"#f8faf9", fontSize:12, color:"#8aab9e", textAlign:"center" }}>
+            <div style={{ marginTop:8, padding:"8px 12px", borderRadius:8, background:"#f8faf9", fontSize:12, color:"#8aab9e", textAlign:"center" }}>
               👁 View only — contact reception to make changes
             </div>
           )}
         </div>
-        )}
+      )}
 
       {/* Book/Edit modal */}
       {showForm && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:100 }}>
           <div style={{ background:'white', borderRadius:16, padding:28, width:500, maxHeight:'90vh', overflowY:'auto' }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-              <h2 style={{ fontSize:16, fontWeight:600, color:'#1a2724', margin:0 }}>{editAppt?'Edit Session':'Book Session'}</h2>
-              <button onClick={() => setShowForm(false)} style={{ border:'none', background:'none', fontSize:20, cursor:'pointer', color:'#8aab9e' }}>×</button>
+              <h2 style={{ fontSize:16, fontWeight:600, color:'#1a2724', margin:0 }}>
+                {editAppt ? 'Edit Session' : 'Book Session'}
+              </h2>
+              <button onClick={() => { setShowForm(false); setEditAppt(null) }} style={{ border:'none', background:'none', fontSize:20, cursor:'pointer', color:'#8aab9e' }}>×</button>
             </div>
             <form onSubmit={handleSubmit}>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:12 }}>
-                <div><label style={lbl}>Client</label>
+                <div>
+                  <label style={lbl}>Client</label>
                   <select required value={clientId} onChange={e=>setClientId(e.target.value)} style={inp}>
                     <option value="">Select client...</option>
-                    {clients.map(c=><option key={c.id} value={c.id}>{c.fullName}</option>)}
+                    {clients.map(c => <option key={c.id} value={c.id}>{c.fullName}</option>)}
                   </select>
                 </div>
-                <div><label style={lbl}>Therapist</label>
+                <div>
+                  <label style={lbl}>Therapist</label>
                   <select value={therapistId} onChange={e=>setTherapistId(e.target.value)} style={inp}>
                     <option value="">Select therapist...</option>
-                    {therapists.map(m=><option key={m.id} value={m.id}>{m.fullName}</option>)}
+                    {therapists.map(m => <option key={m.id} value={m.id}>{m.fullName}</option>)}
                   </select>
                 </div>
-                <div><label style={lbl}>Therapy type</label>
+                <div>
+                  <label style={lbl}>Therapy type</label>
                   <select value={therapyType} onChange={e=>setTherapyType(e.target.value)} style={inp}>
                     <option value="OT">Occupational Therapy</option>
                     <option value="SPEECH">Speech Therapy</option>
@@ -387,8 +395,9 @@ export default function Schedule() {
                     <option value="PHYSIO">Physiotherapy</option>
                   </select>
                 </div>
-                <div><label style={lbl}>Duration (min)</label>
-                  <input type="number" value={durationMin} onChange={e=>setDurationMin(e.target.value)} style={inp}/>
+                <div>
+                  <label style={lbl}>Duration (min)</label>
+                  <input type="number" min="1" value={durationMin} onChange={e=>setDurationMin(e.target.value)} style={inp}/>
                 </div>
               </div>
               <div style={{ marginBottom:12 }}>
@@ -413,8 +422,12 @@ export default function Schedule() {
                 <textarea value={notes} onChange={e=>setNotes(e.target.value)} rows={2} style={{ ...inp, resize:"vertical" as const }}/>
               </div>
               <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
-                <button type="button" onClick={() => setShowForm(false)} style={{ padding:'9px 16px', borderRadius:8, border:'1px solid #d6e8e0', background:'white', fontSize:13, cursor:'pointer', color:'#4a6359' }}>Cancel</button>
-                <button type="submit" disabled={saving} style={{ padding:'9px 16px', borderRadius:8, border:'none', background:'#1a8c6e', color:'white', fontSize:13, fontWeight:500, cursor:'pointer', opacity:saving?0.7:1 }}>
+                <button type="button" onClick={() => { setShowForm(false); setEditAppt(null) }}
+                  style={{ padding:'9px 16px', borderRadius:8, border:'1px solid #d6e8e0', background:'white', fontSize:13, cursor:'pointer', color:'#4a6359' }}>
+                  Cancel
+                </button>
+                <button type="submit" disabled={saving}
+                  style={{ padding:'9px 16px', borderRadius:8, border:'none', background:'#1a8c6e', color:'white', fontSize:13, fontWeight:500, cursor:'pointer', opacity:saving?0.7:1 }}>
                   {saving?'Saving...':editAppt?'Save Changes':'Book Session'}
                 </button>
               </div>
@@ -430,7 +443,7 @@ export default function Schedule() {
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
               <div>
                 <h2 style={{ fontSize:16, fontWeight:600, color:'#1a2724', margin:0 }}>🔁 Recurring Appointments</h2>
-                <div style={{ fontSize:12, color:'#8aab9e', marginTop:4 }}>Generates up to 12 weeks — skips Kenya public holidays automatically</div>
+                <div style={{ fontSize:12, color:'#8aab9e', marginTop:4 }}>Skips Kenya public holidays automatically</div>
               </div>
               <button onClick={() => { setShowRecurring(false); setRecurResult(null) }} style={{ border:'none', background:'none', fontSize:20, cursor:'pointer', color:'#8aab9e' }}>×</button>
             </div>
@@ -442,8 +455,8 @@ export default function Schedule() {
                   <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
                     {[
                       { label:'Sessions booked', value: recurResult.count },
-                      { label:'First session',   value: recurResult.first ? new Date(recurResult.first).toLocaleDateString('en-KE',{ weekday:'short', day:'numeric', month:'short' }) : '—' },
-                      { label:'Last session',    value: recurResult.last  ? new Date(recurResult.last).toLocaleDateString('en-KE',{ weekday:'short', day:'numeric', month:'short' }) : '—' },
+                      { label:'First session',   value: recurResult.first?new Date(recurResult.first).toLocaleDateString('en-KE',{ weekday:'short', day:'numeric', month:'short' }):'—' },
+                      { label:'Last session',    value: recurResult.last?new Date(recurResult.last).toLocaleDateString('en-KE',{ weekday:'short', day:'numeric', month:'short' }):'—' },
                     ].map((item,i) => (
                       <div key={i} style={{ background:'white', borderRadius:8, padding:'10px 14px' }}>
                         <div style={{ fontSize:11, color:'#8aab9e', textTransform:'uppercase', marginBottom:4 }}>{item.label}</div>
@@ -460,19 +473,22 @@ export default function Schedule() {
             ) : (
               <form onSubmit={saveRecurring}>
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
-                  <div style={{ gridColumn:'span 2' }}><label style={lbl}>Client</label>
+                  <div style={{ gridColumn:'span 2' }}>
+                    <label style={lbl}>Client</label>
                     <select required value={clientId} onChange={e=>setClientId(e.target.value)} style={inp}>
                       <option value="">Select client...</option>
-                      {clients.map(c=><option key={c.id} value={c.id}>{c.fullName}</option>)}
+                      {clients.map(c => <option key={c.id} value={c.id}>{c.fullName}</option>)}
                     </select>
                   </div>
-                  <div><label style={lbl}>Therapist</label>
+                  <div>
+                    <label style={lbl}>Therapist</label>
                     <select value={therapistId} onChange={e=>setTherapistId(e.target.value)} style={inp}>
                       <option value="">Select therapist...</option>
-                      {therapists.map(m=><option key={m.id} value={m.id}>{m.fullName}</option>)}
+                      {therapists.map(m => <option key={m.id} value={m.id}>{m.fullName}</option>)}
                     </select>
                   </div>
-                  <div><label style={lbl}>Therapy type</label>
+                  <div>
+                    <label style={lbl}>Therapy type</label>
                     <select value={therapyType} onChange={e=>setTherapyType(e.target.value)} style={inp}>
                       <option value="OT">Occupational Therapy</option>
                       <option value="SPEECH">Speech Therapy</option>
@@ -483,13 +499,16 @@ export default function Schedule() {
                       <option value="PHYSIO">Physiotherapy</option>
                     </select>
                   </div>
-                  <div><label style={lbl}>Start date</label>
+                  <div>
+                    <label style={lbl}>Start date</label>
                     <input required type="date" value={recurStartDate} onChange={e=>setRecurStartDate(e.target.value)} style={inp}/>
                   </div>
-                  <div><label style={lbl}>Session time</label>
+                  <div>
+                    <label style={lbl}>Session time</label>
                     <input required type="time" value={recurStartTime} onChange={e=>setRecurStartTime(e.target.value)} style={inp}/>
                   </div>
-                  <div><label style={lbl}>Duration (min)</label>
+                  <div>
+                    <label style={lbl}>Duration (min)</label>
                     <input type="number" value={durationMin} onChange={e=>setDurationMin(e.target.value)} style={inp}/>
                   </div>
                 </div>
@@ -504,7 +523,7 @@ export default function Schedule() {
                       </button>
                     ))}
                   </div>
-                  {recurPattern === 'CUSTOM' && (
+                  {recurPattern==='CUSTOM' && (
                     <div style={{ display:'flex', gap:6 }}>
                       {[['S',0],['M',1],['T',2],['W',3],['T',4],['F',5],['S',6]].map(([label,day]) => (
                         <button key={day} type="button" onClick={() => toggleRecurDay(day as number)}
@@ -533,7 +552,7 @@ export default function Schedule() {
                 </div>
 
                 <div style={{ marginBottom:16 }}>
-                  <label style={lbl}>Notes (applied to all sessions)</label>
+                  <label style={lbl}>Notes</label>
                   <input value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Optional..." style={inp}/>
                 </div>
 
