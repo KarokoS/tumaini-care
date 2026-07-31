@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import Layout from "../components/Layout"
 import api from '../lib/api'
 import { useAuthStore } from '../stores/auth.store'
+import { useNavigate } from 'react-router-dom'
 
 const HOURS = ['8:00','9:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00']
 const DAYS  = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
@@ -64,6 +65,8 @@ export default function Schedule() {
   const [durationMin, setDurationMin] = useState('50')
   const [notes, setNotes]             = useState('')
   const [status, setStatus]           = useState('SCHEDULED')
+
+  const navigate = useNavigate()
 
   useEffect(() => { loadData() }, [])
 
@@ -335,9 +338,9 @@ export default function Schedule() {
             <div><strong style={{ color:'#1a2724' }}>Status:</strong> <span style={{ color:STATUS_COLORS[selectedAppt.status]??'#8aab9e', fontWeight:600 }}>{selectedAppt.status}</span></div>
             {selectedAppt.notes&&<div><strong style={{ color:'#1a2724' }}>Notes:</strong> {selectedAppt.notes}</div>}
           </div>
-          <a href="/sessions" style={{ display:"block", marginTop:10, padding:"7px 14px", borderRadius:8, background:"#7c3aed", color:"white", fontSize:12.5, fontWeight:500, textDecoration:"none", textAlign:"center" }}>
+          <button onClick={() => navigate(`/sessions?apptId=${selectedAppt.id}`)} style={{ display:"block", marginTop:10, padding:"7px 14px", borderRadius:8, background:"#7c3aed", color:"white", fontSize:12.5, fontWeight:500, textDecoration:"none", textAlign:"center" }}>
             ✏️ Write Session Note
-          </a>
+          </button>
           {!isReadOnly ? (
             <div style={{ display:'flex', gap:8, marginTop:8 }}>
               <button onClick={() => openEdit(selectedAppt)}
