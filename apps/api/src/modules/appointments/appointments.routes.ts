@@ -36,11 +36,43 @@ export async function appointmentRoutes(fastify: FastifyInstance) {
 
   // ── Create single appointment ──
   fastify.post('/appointments', {
-    preHandler: requireRole('SUPER_ADMIN', 'MANAGER', 'RECEPTIONIST', 'THERAPIST')
-  }, async (request, reply) => {
-    const body = request.body as any
+  preHandler: requireRole('SUPER_ADMIN', 'MANAGER', 'RECEPTIONIST', 'THERAPIST')
+}, async (request, reply) => {
+  const body = request.body as any
 
-    const appointment = await prisma.appointment.create({
+  // Check working hours (8AM - 5PM)
+  const apptDate = new Date(body.scheduledAt)
+  const hour     = apptDate.getHours()
+  if (hour < 8 || hour >= 17) {
+    return reply.status(400).send({
+      message: 'Sessions can only be booked between 8:00 AM and 5:00 PM.'
+    })
+  }
+
+  // Check for double booking — same therapist, same time slot
+  if (body.therapistId) {
+    const slotStart = new Date(body.scheduledAt)
+    const slotEnd   = new Date(slotStart.getTime() + (body.durationMin ?? 50) * 60000)
+
+    const conflict = await prisma.appointment.findFirst({
+      where: {
+        therapistId: body.therapistId,
+        status:      { notIn: ['CANCELLED', 'NO_SHOW'] },
+        scheduledAt: {
+          gte: new Date(slotStart.getTime() - (body.durationMin ?? 50) * 60000),
+          lt:  slotEnd,
+        }
+      }
+    })
+
+    if (conflict) {
+      return reply.status(400).send({
+        message: `This therapist already has a session at this time. Please choose a different time slot.`
+      })
+    }
+  }
+
+      const appointment = await prisma.appointment.create({
       data: {
         clientId:    body.clientId,
         therapistId: body.therapistId || null,
