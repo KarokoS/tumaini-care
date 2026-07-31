@@ -100,7 +100,7 @@ model Client {
 model Guardian {
   id           String  @id @default(uuid())
   clientId     String
-  fullNgame     String
+  fullName      String
   relationship String
   phone        String
   email        String?
