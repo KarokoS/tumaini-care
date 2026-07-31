@@ -28,15 +28,17 @@ api.interceptors.response.use(
     const originalRequest = error.config
 
     // Retry once on network error (Render wake-up)
-    if (!error.response && !originalRequest._retry) {
-      originalRequest._retry = true
+    if (!error.response && !originalRequest._networkRetry) {
+      originalRequest._networkRetry = true
       await new Promise(resolve => setTimeout(resolve, 3000))
       return api(originalRequest)
     }
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (error.response?.status === 401 && !originalRequest._authRetry) {
+      originalRequest._authRetry = true
+      // ...rest of refresh logic unchanged, just rename the other `_retry` references to `_authRetry`
+    
       const refreshToken = localStorage.getItem('refreshToken')
-
       if (!refreshToken) {
         localStorage.removeItem('accessToken')
         localStorage.removeItem('refreshToken')
