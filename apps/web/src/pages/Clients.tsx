@@ -3,8 +3,13 @@ import Layout from "../components/Layout"
 import api from '../lib/api'
 import { useAuthStore } from '../stores/auth.store'
 
-type Guardian = { fullName: string; phone?: string; email?: string }
-type Client   = { id: string; fullName: string; dob: string; diagnosis?: string | null; status: string; isProBono?: boolean; createdAt: string; guardians?: Guardian[] }
+type Guardian = { fullName: string; phone?: string; relationship?: string }
+type Client   = {
+  id: string; fullName: string; dob: string
+  diagnosis?: string | null; status: string
+  isProBono?: boolean; createdAt: string
+  guardians?: Guardian[]
+}
 
 function errorMessage(err: unknown, fallback: string) {
   const r = (err as any)?.response?.data
@@ -12,13 +17,12 @@ function errorMessage(err: unknown, fallback: string) {
 }
 
 export default function Clients() {
-  const { user }   = useAuthStore()
-  const isReadOnly = false // therapists can now add clients
-  const canManage  = user?.role === "SUPER_ADMIN" || user?.role === "MANAGER"
-  const canAdd     = user?.role === "SUPER_ADMIN" || user?.role === "MANAGER" ||
-                    user?.role === "RECEPTIONIST" || user?.role === "THERAPIST"
-  const canEdit    = user?.role === "SUPER_ADMIN" || user?.role === "MANAGER" ||
-                    user?.role === "RECEPTIONIST"
+  const { user }    = useAuthStore()
+  const canManage   = user?.role === "SUPER_ADMIN" || user?.role === "MANAGER"
+  const canAdd      = user?.role === "SUPER_ADMIN" || user?.role === "MANAGER" ||
+                      user?.role === "RECEPTIONIST" || user?.role === "THERAPIST"
+  const canEdit     = user?.role === "SUPER_ADMIN" || user?.role === "MANAGER" ||
+                      user?.role === "RECEPTIONIST"
 
   const [clients, setClients]             = useState<Client[]>([])
   const [loading, setLoading]             = useState(true)
@@ -41,7 +45,7 @@ export default function Clients() {
   function loadClients() {
     setLoading(true)
     api.get('/clients')
-      .then((res: any) => setClients(res.data))
+      .then((res:any) => setClients(res.data ?? []))
       .catch(console.error)
       .finally(() => setLoading(false))
   }
@@ -67,7 +71,7 @@ export default function Clients() {
 
   async function toggleStatus(client: Client) {
     try {
-      await api.patch(`/clients/${client.id}/status`, { status: client.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' })
+      await api.patch(`/clients/${client.id}/status`, { status: client.status==='ACTIVE'?'INACTIVE':'ACTIVE' })
       setOpenMenuId(null); loadClients()
     } catch (err) { alert(errorMessage(err, 'Failed to update status')) }
   }
@@ -91,7 +95,7 @@ export default function Clients() {
 
   const filtered = clients.filter(c => {
     const matchSearch = c.fullName.toLowerCase().includes(search.toLowerCase())
-    const matchStatus = statusFilter === 'ALL' || c.status === statusFilter
+    const matchStatus = statusFilter==='ALL' || c.status===statusFilter
     return matchSearch && matchStatus
   })
 
@@ -100,16 +104,17 @@ export default function Clients() {
 
   return (
     <Layout title="Clients" action={
-      canAdd && !isReadOnly ? (
-        <button onClick={() => setShowForm(true)} style={{ padding:"8px 16px", borderRadius:8, border:"none", background:"#1a8c6e", color:"white", fontSize:13, fontWeight:500, cursor:"pointer" }}>
+      canAdd ? (
+        <button onClick={() => setShowForm(true)}
+          style={{ padding:"8px 16px", borderRadius:8, border:"none", background:"#1a8c6e", color:"white", fontSize:13, fontWeight:500, cursor:"pointer" }}>
           + New Client
         </button>
       ) : undefined
     }>
 
       <div style={{ display:"flex", gap:10, marginBottom:16, alignItems:"center", flexWrap:"wrap" }}>
-        <input type="text" placeholder="Search clients by name..." value={search} onChange={e => setSearch(e.target.value)}
-          style={{ padding:"9px 14px", borderRadius:8, border:"1px solid #d6e8e0", fontSize:13, width:280, outline:"none" }} />
+        <input type="text" placeholder="Search clients by name..." value={search} onChange={e=>setSearch(e.target.value)}
+          style={{ padding:"9px 14px", borderRadius:8, border:"1px solid #d6e8e0", fontSize:13, width:280, outline:"none" }}/>
         <div style={{ display:"flex", gap:6 }}>
           {["ALL","ACTIVE","INACTIVE"].map(s => (
             <button key={s} onClick={() => setStatusFilter(s)}
@@ -118,9 +123,6 @@ export default function Clients() {
             </button>
           ))}
         </div>
-        {isReadOnly && (
-          <span style={{ fontSize:12, color:"#8aab9e", padding:"6px 12px", borderRadius:8, background:"#f8faf9", border:"1px solid #d6e8e0" }}>👁 View only</span>
-        )}
       </div>
 
       <div style={{ background:"white", borderRadius:12, border:"1px solid #d6e8e0", overflow:"hidden" }}>
@@ -138,7 +140,7 @@ export default function Clients() {
             ) : filtered.length === 0 ? (
               <tr><td colSpan={6} style={{ padding:32, textAlign:"center", color:"#8aab9e" }}>No clients found</td></tr>
             ) : filtered.map((client, i) => {
-              const age      = new Date().getFullYear() - new Date(client.dob).getFullYear()
+              const age      = Math.floor((new Date().getTime()-new Date(client.dob).getTime())/(1000*60*60*24*365))
               const guardian = client.guardians?.[0]
               return (
                 <tr key={i} style={{ borderBottom:"1px solid #f0f4f2" }}>
@@ -157,7 +159,7 @@ export default function Clients() {
                   <td style={{ padding:"12px 16px", color:"#4a6359" }}>{client.diagnosis ?? "—"}</td>
                   <td style={{ padding:"12px 16px", color:"#4a6359" }}>
                     <div>{guardian?.fullName ?? "—"}</div>
-                    {guardian?.phone && <div style={{ fontSize:11.5, color:"#8aab9e", marginTop:2 }}>{guardian.phone}</div>}
+                    {guardian?.phone && <div style={{ fontSize:11.5, color:"#8aab9e" }}>{guardian.phone}</div>}
                   </td>
                   <td style={{ padding:"12px 16px" }}>
                     <span style={{ fontSize:11, padding:"2px 8px", borderRadius:20, background:client.status==="ACTIVE"?"#e6f4ef":"#f0f4f2", color:client.status==="ACTIVE"?"#1a8c6e":"#8aab9e", fontWeight:500 }}>
@@ -168,23 +170,23 @@ export default function Clients() {
                     <div style={{ display:"flex", gap:10, justifyContent:"flex-end", alignItems:"center" }}>
                       <a href={"/clients/"+client.id} style={{ fontSize:12, color:"#1a8c6e", fontWeight:500 }}>View</a>
                       {canEdit && (
-                        <button
-                          onClick={() => setOpenMenuId(openMenuId===client.id?null:client.id)}
-                          style={{ border:"none", background:"none", cursor:"pointer", color:"#8aab9e", fontSize:16, padding:"2px 6px" }}
-                        >⋮</button>
+                        <button onClick={() => setOpenMenuId(openMenuId===client.id?null:client.id)}
+                          style={{ border:"none", background:"none", cursor:"pointer", color:"#8aab9e", fontSize:16, padding:"2px 6px" }}>⋮</button>
                       )}
                     </div>
-                    {openMenuId === client.id && (
+                    {openMenuId===client.id && (
                       <div style={{ position:"absolute", right:16, top:"100%", marginTop:4, background:"white", border:"1px solid #d6e8e0", borderRadius:8, boxShadow:"0 4px 16px rgba(0,0,0,0.1)", zIndex:10, minWidth:180, textAlign:"left" }}>
                         <button onClick={() => toggleStatus(client)}
                           style={{ display:"block", width:"100%", padding:"8px 14px", border:"none", background:"none", textAlign:"left", fontSize:12.5, color:"#4a6359", cursor:"pointer" }}>
                           {client.status==="ACTIVE"?"Mark as Inactive":"✓ Mark as Active"}
                         </button>
-                        <button onClick={() => toggleProBono(client)}
-                          style={{ display:"block", width:"100%", padding:"8px 14px", border:"none", background:"none", textAlign:"left", fontSize:12.5, color:"#d97706", cursor:"pointer", borderTop:"1px solid #f0f4f2" }}>
-                          {client.isProBono?"Remove Pro Bono":"🤝 Mark as Pro Bono"}
-                        </button>
-                        {user?.role === "SUPER_ADMIN" && (
+                        {canManage && (
+                          <button onClick={() => toggleProBono(client)}
+                            style={{ display:"block", width:"100%", padding:"8px 14px", border:"none", background:"none", textAlign:"left", fontSize:12.5, color:"#d97706", cursor:"pointer", borderTop:"1px solid #f0f4f2" }}>
+                            {client.isProBono?"Remove Pro Bono":"🤝 Mark as Pro Bono"}
+                          </button>
+                        )}
+                        {user?.role==="SUPER_ADMIN" && (
                           <button onClick={() => { setConfirmDelete(client); setOpenMenuId(null) }}
                             style={{ display:"block", width:"100%", padding:"8px 14px", border:"none", background:"none", textAlign:"left", fontSize:12.5, color:"#d63f5c", cursor:"pointer", borderTop:"1px solid #f0f4f2" }}>
                             Delete Client
@@ -200,6 +202,7 @@ export default function Clients() {
         </table>
       </div>
 
+      {/* Add Client modal */}
       {showForm && (
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.4)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:100 }}>
           <div style={{ background:"white", borderRadius:16, padding:28, width:560, maxHeight:"90vh", overflowY:"auto" }}>
@@ -221,7 +224,10 @@ export default function Clients() {
                 <div><label style={lbl}>School name</label><input value={form.schoolName} onChange={e=>setForm(f=>({...f,schoolName:e.target.value}))} style={inp}/></div>
                 <div><label style={lbl}>Referral source</label><input value={form.referralSrc} onChange={e=>setForm(f=>({...f,referralSrc:e.target.value}))} style={inp}/></div>
               </div>
-              <div style={{ marginBottom:20 }}><label style={lbl}>Allergies / medical alerts</label><input value={form.allergies} onChange={e=>setForm(f=>({...f,allergies:e.target.value}))} style={inp}/></div>
+              <div style={{ marginBottom:20 }}>
+                <label style={lbl}>Allergies / medical alerts</label>
+                <input value={form.allergies} onChange={e=>setForm(f=>({...f,allergies:e.target.value}))} style={inp}/>
+              </div>
               <div style={{ fontSize:12, fontWeight:600, color:"#1a8c6e", textTransform:"uppercase", marginBottom:12 }}>Parent / Guardian</div>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:20 }}>
                 <div><label style={lbl}>Full name *</label><input required value={form.guardianName} onChange={e=>setForm(f=>({...f,guardianName:e.target.value}))} style={inp}/></div>
@@ -242,6 +248,7 @@ export default function Clients() {
         </div>
       )}
 
+      {/* Delete confirmation */}
       {confirmDelete && (
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:200 }}>
           <div style={{ background:"white", borderRadius:16, padding:28, width:420 }}>
