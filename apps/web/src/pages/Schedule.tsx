@@ -135,13 +135,18 @@ export default function Schedule() {
     setSaving(true)
     try {
       // Validate working hours
-      const apptDate = new Date(scheduledAt)
-      const hour     = apptDate.getHours()
-      if (hour < 8 || hour >= 17) {
-        alert("Sessions can only be booked between 8:00 AM and 5:00 PM.")
-        setSaving(false)
-        return
-      }
+      if (!scheduledAt) {
+  alert("Please select a date and time.")
+  setSaving(false)
+  return
+}
+const apptDate = new Date(scheduledAt)
+const hour     = apptDate.getHours()
+if (hour < 8 || hour >= 17) {
+  alert(`Sessions can only be booked between 8:00 AM and 5:00 PM. You selected ${apptDate.toLocaleTimeString('en-KE',{hour:'2-digit',minute:'2-digit'})}.`)
+  setSaving(false)
+  return
+}
 
       if (editAppt) {
         // UPDATE existing appointment
