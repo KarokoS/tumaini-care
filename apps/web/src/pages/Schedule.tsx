@@ -194,11 +194,11 @@ if (hour < 8 || hour >= 17) {
     setSavingRecur(true); setRecurResult(null)
     try {
       const [h] = recurStartTime.split(':').map(Number)
-      if (h < 8 || h >= 17) {
-        alert("Sessions can only be booked between 8:00 AM and 5:00 PM.")
-        setSavingRecur(false)
-        return
-      }
+if (h < 8 || h >= 17) {
+  alert(`Sessions can only be booked between 8:00 AM and 5:00 PM. You selected ${recurStartTime}.`)
+  setSavingRecur(false)
+  return
+}
       const res = await api.post('/appointments/recurring', {
         clientId, therapistId: therapistId||null, therapyType,
         startDate: recurStartDate, startTime: recurStartTime,

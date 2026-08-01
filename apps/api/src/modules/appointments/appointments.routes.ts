@@ -41,13 +41,13 @@ export async function appointmentRoutes(fastify: FastifyInstance) {
   const body = request.body as any
 
   // Check working hours (8AM - 5PM)
-  const apptDate = new Date(body.scheduledAt)
-  const hour     = apptDate.getHours()
-  if (hour < 8 || hour >= 17) {
-    return reply.status(400).send({
-      message: 'Sessions can only be booked between 8:00 AM and 5:00 PM.'
-    })
-  }
+  const apptDate  = new Date(body.scheduledAt)
+const kenyaHour = (apptDate.getUTCHours() + 3) % 24
+if (kenyaHour < 8 || kenyaHour >= 17) {
+  return reply.status(400).send({
+    message: `Sessions can only be booked between 8:00 AM and 5:00 PM (Kenya time). You selected ${kenyaHour}:${String(apptDate.getUTCMinutes()).padStart(2,'0')}.`
+  })
+}
 
   // Check for double booking — same therapist, same time slot
   if (body.therapistId) {
