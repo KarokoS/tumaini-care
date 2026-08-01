@@ -51,26 +51,36 @@ if (kenyaHour < 8 || kenyaHour >= 17) {
 
   // Check for double booking — same therapist, same time slot
   if (body.therapistId) {
-    const slotStart = new Date(body.scheduledAt)
-    const slotEnd   = new Date(slotStart.getTime() + (body.durationMin ?? 50) * 60000)
+  const slotStart = new Date(body.scheduledAt)
+  const duration  = body.durationMin ?? 50
+  const slotEnd   = new Date(slotStart.getTime() + duration * 60000)
 
-    const conflict = await prisma.appointment.findFirst({
-      where: {
-        therapistId: body.therapistId,
-        status:      { notIn: ['CANCELLED', 'NO_SHOW'] },
-        scheduledAt: {
-          gte: new Date(slotStart.getTime() - (body.durationMin ?? 50) * 60000),
-          lt:  slotEnd,
-        }
-      }
+  // Get candidate appointments for that therapist on the same day
+  const dayStart = new Date(slotStart); dayStart.setHours(0,0,0,0)
+  const dayEnd   = new Date(slotStart); dayEnd.setHours(23,59,59,999)
+
+  const candidates = await prisma.appointment.findMany({
+    where: {
+      therapistId: body.therapistId,
+      status:      { notIn: ['CANCELLED', 'NO_SHOW'] },
+      scheduledAt: { gte: dayStart, lte: dayEnd },
+    },
+    select: { scheduledAt: true, durationMin: true }
+  })
+
+  const hasConflict = candidates.some(c => {
+    const existingStart = new Date(c.scheduledAt)
+    const existingEnd   = new Date(existingStart.getTime() + (c.durationMin ?? 50) * 60000)
+    // True overlap only: existing starts before new ends AND existing ends after new starts
+    return existingStart < slotEnd && existingEnd > slotStart
+  })
+
+  if (hasConflict) {
+    return reply.status(400).send({
+      message: `This therapist already has a session that overlaps this time. Please choose a different time slot.`
     })
-
-    if (conflict) {
-      return reply.status(400).send({
-        message: `This therapist already has a session at this time. Please choose a different time slot.`
-      })
-    }
   }
+}
 
       const appointment = await prisma.appointment.create({
       data: {
