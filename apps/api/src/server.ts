@@ -18,6 +18,7 @@ import { inventoryRoutes } from './modules/inventory/inventory.routes'
 import { AppError } from './shared/errors'
 import { aiRoutes } from './modules/sessions/ai.routes'
 import { sendSMS } from './shared/sms'
+import { consentRoutes } from './modules/consent/consent.routes'
 
 const fastify = Fastify({ logger: true })
 
@@ -48,6 +49,7 @@ async function buildServer() {
   await fastify.register(mpesaRoutes,       { prefix: '/api/v1' })
   await fastify.register(inventoryRoutes,   { prefix: '/api/v1' })
   await fastify.register(aiRoutes, { prefix: '/api/v1' })
+  await fastify.register(consentRoutes, { prefix: '/api/v1' })
 
   fastify.setErrorHandler((error, _request, reply) => {
     if (error instanceof AppError) {

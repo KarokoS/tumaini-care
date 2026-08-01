@@ -22,6 +22,7 @@ import Timetable      from './pages/Timetable'
 import Alerts from './pages/Alerts'
 import ClientProgress from './pages/ClientProgress'
 import DailySummary from './pages/DailySummary'
+import ConsentForm from './pages/ConsentForm'
 
 const ADMIN    = ["SUPER_ADMIN", "MANAGER"]
 const CLINICAL = ["SUPER_ADMIN", "MANAGER", "THERAPIST"]
@@ -86,6 +87,7 @@ export default function App() {
         <Route path="/clients/import"  element={<ProtectedRoute roles={ADMIN}><ImportClients /></ProtectedRoute>} />
         <Route path="/clients/:id"     element={<ProtectedRoute roles={[...CLINICAL,"RECEPTIONIST"]}><ClientDetail /></ProtectedRoute>} />
         <Route path="/clients/:id/progress" element={<ProtectedRoute roles={[...CLINICAL,"RECEPTIONIST"]}><ClientProgress /></ProtectedRoute>} />
+        <Route path="/clients/:id/consent" element={<ProtectedRoute roles={[...CLINICAL,"RECEPTIONIST"]}><ConsentForm /></ProtectedRoute>} />
 
         {/* Schedule */}
         <Route path="/schedule" element={<ProtectedRoute roles={[...CLINICAL,"RECEPTIONIST"]}><Schedule /></ProtectedRoute>} />

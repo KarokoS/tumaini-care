@@ -184,6 +184,7 @@ export default function ClientDetail() {
             { label:"Allergies",       value: client.allergies || "—" },
             { label:"School",          value: client.schoolName || "—" },
             { label:"Referral Source", value: client.referralSrc || "—" },
+            { label:"✍ Consent Form", href:`/clients/${id}/consent` },
             { label:"Registered",      value: client.registrationDate
                 ? new Date(client.registrationDate).toLocaleDateString("en-KE")
                 : new Date(client.createdAt).toLocaleDateString("en-KE") },

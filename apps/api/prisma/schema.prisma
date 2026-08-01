@@ -66,6 +66,7 @@ model Branch {
   clients   Client[]
   staff     Staff[]
   inventory InventoryItem[]
+  consents Consent[]
 }
 
 model Client {
@@ -305,4 +306,20 @@ model InventoryItem {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   branch    Branch   @relation(fields: [branchId], references: [id])
+}
+
+model Consent {
+  id              String   @id @default(uuid())
+  clientId        String
+  guardianName    String
+  relationship    String
+  consentAssessment Boolean @default(false)
+  consentTherapy    Boolean @default(false)
+  consentDataStorage Boolean @default(false)
+  consentPhotoVideo  Boolean @default(false)
+  signatureData   String?
+  signedAt        DateTime @default(now())
+  recordedById    String?
+  client          Client   @relation(fields: [clientId], references: [id])
+  createdAt       DateTime @default(now())
 }

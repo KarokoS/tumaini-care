@@ -4,6 +4,24 @@ import Layout from "../components/Layout"
 
 const TEMPLATES = [
   {
+    name: "OT Initial Assessment",
+    full: "Occupational Therapy Initial Assessment",
+    color: "#3b82f6",
+    when: "First OT session · New referral",
+    guide: "Comprehensive intake covering case history, developmental milestones, gross/fine motor skills, ADL, sensory integration and neurological screening. Capture: chief complaint, prenatal/birth/medical history, milestones (sitting/crawling/standing/walking ages), gross motor (head control, rolling, trunk control), fine motor (eye tracking, grasp/release), ADL (feeding, toileting, grooming), sensory integration (tactile, vestibular, proprioceptive, auditory, visual), muscle tone and reflexes, cognitive skills, and treatment objectives (short & long term).",
+    who: "Occupational Therapist",
+    duration: "60–90 min",
+  },
+  {
+    name: "SLT Initial Assessment",
+    full: "Speech-Language Therapy Initial Assessment",
+    color: "#22c55e",
+    when: "First SLT session · New referral",
+    guide: "Comprehensive intake covering case history, family and language exposure, developmental and language milestones, preverbal skills, receptive/expressive language. Capture: referral source, prior clinics attended, family social history, prenatal/birth/medical history, developmental milestones, language history (first words, combining words, questions, conversation), preverbal skills (attention, listening, imitation, turn-taking, play), receptive and expressive language levels, child's strengths, and SLT clinical impression (note ASD, stammering, or cleft lip/palate presentation where relevant).",
+    who: "Speech-Language Therapist",
+    duration: "60–90 min",
+  },
+  {
     name: "ADOS-2",
     full: "Autism Diagnostic Observation Schedule",
     color: "#1a8c6e",
@@ -60,7 +78,7 @@ const TEMPLATES = [
 ]
 
 const WORKFLOW = [
-  { stage: "First visit / Intake",  tools: ["CARS-2", "Sensory Profile 2"] },
+  { stage: "First visit / Intake", tools: ["CARS-2", "Sensory Profile 2", "OT Initial Assessment", "SLT Initial Assessment"] },
   { stage: "Formal Diagnosis",      tools: ["ADOS-2", "ADOS-2 Module 1"] },
   { stage: "Behaviour Concerns",    tools: ["FBA"] },
   { stage: "6-Month Review",        tools: ["Vineland-3", "CARS-2"] },
@@ -112,7 +130,9 @@ export default function Assessments() {
 
   const COLORS: Record<string, string> = {
     "ADOS-2": "#1a8c6e", "CARS-2": "#2563a8", "Vineland-3": "#7c3aed",
-    "Sensory Profile 2": "#f97316", "ADOS-2 Module 1": "#22c55e", "FBA": "#d97706"
+    "Sensory Profile 2": "#f97316", "ADOS-2 Module 1": "#22c55e", "FBA": "#d97706",
+    "OT Initial Assessment": "#3b82f6",
+    "SLT Initial Assessment": "#22c55e",
   }
 
   return (
