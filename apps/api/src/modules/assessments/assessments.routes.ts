@@ -28,6 +28,7 @@ export async function assessmentRoutes(fastify: FastifyInstance) {
           assessmentDate: new Date(body.assessmentDate),
           findings: body.findings,
           recommendations: body.recommendations,
+          structuredData: body.structuredData ?? null,
         },
         include: { client: { select: { fullName: true } } },
       })

@@ -290,6 +290,7 @@ model Assessment {
   assessmentDate  DateTime
   findings        String?
   recommendations String?
+  structuredData Json?
   createdAt       DateTime @default(now())
   client          Client   @relation(fields: [clientId], references: [id])
 }

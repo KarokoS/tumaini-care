@@ -1,26 +1,9 @@
 import { useEffect, useState } from "react"
 import api from "../lib/api"
 import Layout from "../components/Layout"
+import { OT_SECTIONS, SLT_SECTIONS, type SectionDef } from "../lib/assessmentFields"
 
 const TEMPLATES = [
-  {
-    name: "OT Initial Assessment",
-    full: "Occupational Therapy Initial Assessment",
-    color: "#3b82f6",
-    when: "First OT session · New referral",
-    guide: "Comprehensive intake covering case history, developmental milestones, gross/fine motor skills, ADL, sensory integration and neurological screening. Capture: chief complaint, prenatal/birth/medical history, milestones (sitting/crawling/standing/walking ages), gross motor (head control, rolling, trunk control), fine motor (eye tracking, grasp/release), ADL (feeding, toileting, grooming), sensory integration (tactile, vestibular, proprioceptive, auditory, visual), muscle tone and reflexes, cognitive skills, and treatment objectives (short & long term).",
-    who: "Occupational Therapist",
-    duration: "60–90 min",
-  },
-  {
-    name: "SLT Initial Assessment",
-    full: "Speech-Language Therapy Initial Assessment",
-    color: "#22c55e",
-    when: "First SLT session · New referral",
-    guide: "Comprehensive intake covering case history, family and language exposure, developmental and language milestones, preverbal skills, receptive/expressive language. Capture: referral source, prior clinics attended, family social history, prenatal/birth/medical history, developmental milestones, language history (first words, combining words, questions, conversation), preverbal skills (attention, listening, imitation, turn-taking, play), receptive and expressive language levels, child's strengths, and SLT clinical impression (note ASD, stammering, or cleft lip/palate presentation where relevant).",
-    who: "Speech-Language Therapist",
-    duration: "60–90 min",
-  },
   {
     name: "ADOS-2",
     full: "Autism Diagnostic Observation Schedule",
@@ -35,7 +18,7 @@ const TEMPLATES = [
     full: "For non-verbal / single words",
     color: "#22c55e",
     when: "First visit · Non-verbal children",
-    guide: "Same as ADOS-2 but designed for children with no speech or only single words. Use for younger or minimally verbal children.",
+    guide: "Same as ADOS-2 but designed for children with no speech or only single words.",
     who: "Psychologist / trained clinician",
     duration: "30–45 min",
   },
@@ -44,7 +27,7 @@ const TEMPLATES = [
     full: "Childhood Autism Rating Scale",
     color: "#2563a8",
     when: "Intake screening · 6-month review",
-    guide: "Clinician rates child across 15 areas including social interaction, communication, and emotional response. Quicker than ADOS-2. Use for initial screening or to track severity over time.",
+    guide: "Clinician rates child across 15 areas including social interaction, communication, and emotional response.",
     who: "Any trained therapist",
     duration: "15–20 min",
   },
@@ -53,7 +36,7 @@ const TEMPLATES = [
     full: "Vineland Adaptive Behavior Scales",
     color: "#7c3aed",
     when: "Intake · 6-month review · Annual review",
-    guide: "Measures practical daily living skills — communication, self-care, socialisation, and motor skills. Administered through structured parent/guardian interview. Tracks real-world progress beyond the therapy room.",
+    guide: "Measures practical daily living skills through structured parent/guardian interview.",
     who: "Any therapist · parent interview",
     duration: "20–45 min",
   },
@@ -62,7 +45,7 @@ const TEMPLATES = [
     full: "Dunn Sensory Profile",
     color: "#f97316",
     when: "Intake · When sensory issues present",
-    guide: "Parent questionnaire identifying how the child processes sensory information — sound, touch, movement, taste. Essential for OT and sensory integration therapy planning. Use when child shows sensory sensitivities, meltdowns, or avoidance behaviours.",
+    guide: "Parent questionnaire identifying how the child processes sensory information.",
     who: "OT therapist · parent completes",
     duration: "15–20 min",
   },
@@ -71,19 +54,49 @@ const TEMPLATES = [
     full: "Functional Behavior Assessment",
     color: "#d97706",
     when: "When behaviour concerns present",
-    guide: "Identifies why a child shows a challenging behaviour — triggers, what maintains it, and what the child communicates through it. Use before designing a behaviour intervention plan for any child with significant behavioural challenges.",
+    guide: "Identifies why a child shows a challenging behaviour — triggers, function, and what the child communicates through it.",
     who: "ABA therapist",
+    duration: "60–90 min",
+  },
+  {
+    name: "OT Initial Assessment",
+    full: "Occupational Therapy Initial Assessment",
+    color: "#3b82f6",
+    when: "First OT session · New referral",
+    guide: "Comprehensive intake covering case history, developmental milestones, gross/fine motor skills, ADL, sensory integration and neurological screening.",
+    who: "Occupational Therapist",
+    duration: "60–90 min",
+  },
+  {
+    name: "SLT Initial Assessment",
+    full: "Speech-Language Therapy Initial Assessment",
+    color: "#22c55e",
+    when: "First SLT session · New referral",
+    guide: "Comprehensive intake covering case history, family and language exposure, developmental milestones, preverbal skills, receptive/expressive language.",
+    who: "Speech-Language Therapist",
     duration: "60–90 min",
   },
 ]
 
 const WORKFLOW = [
-  { stage: "First visit / Intake", tools: ["CARS-2", "Sensory Profile 2", "OT Initial Assessment", "SLT Initial Assessment"] },
+  { stage: "First visit / Intake",  tools: ["CARS-2", "Sensory Profile 2", "OT Initial Assessment", "SLT Initial Assessment"] },
   { stage: "Formal Diagnosis",      tools: ["ADOS-2", "ADOS-2 Module 1"] },
   { stage: "Behaviour Concerns",    tools: ["FBA"] },
   { stage: "6-Month Review",        tools: ["Vineland-3", "CARS-2"] },
   { stage: "Annual Review",         tools: ["ADOS-2", "Vineland-3", "CARS-2", "Sensory Profile 2"] },
 ]
+
+const COLORS: Record<string, string> = {
+  "ADOS-2": "#1a8c6e", "CARS-2": "#2563a8", "Vineland-3": "#7c3aed",
+  "Sensory Profile 2": "#f97316", "ADOS-2 Module 1": "#22c55e", "FBA": "#d97706",
+  "OT Initial Assessment": "#3b82f6", "SLT Initial Assessment": "#22c55e",
+}
+
+function getSectionsForTemplate(templateName: string): SectionDef[] | null {
+  if (templateName === "OT Initial Assessment") return OT_SECTIONS
+  if (templateName === "SLT Initial Assessment") return SLT_SECTIONS
+  return null
+}
 
 export default function Assessments() {
   const [clients, setClients] = useState<any[]>([])
@@ -97,6 +110,7 @@ export default function Assessments() {
   const [assessmentDate, setAssessmentDate] = useState("")
   const [findings, setFindings] = useState("")
   const [recommendations, setRecommendations] = useState("")
+  const [structuredData, setStructuredData] = useState<Record<string,string>>({})
   const [expandedTemplate, setExpandedTemplate] = useState<string | null>(null)
 
   useEffect(() => {
@@ -116,23 +130,17 @@ export default function Assessments() {
       await api.post("/assessments", {
         clientId, templateName: selectedTemplate,
         assessorName, assessmentDate,
-        findings, recommendations
+        findings, recommendations,
+        structuredData: Object.keys(structuredData).length > 0 ? structuredData : undefined,
       })
       setShowForm(false)
       setClientId(""); setSelectedTemplate(""); setAssessorName("")
-      setAssessmentDate(""); setFindings(""); setRecommendations("")
+      setAssessmentDate(""); setFindings(""); setRecommendations(""); setStructuredData({})
       const r = await api.get("/assessments").catch(() => ({ data: [] }))
       setAssessments((r as any).data)
     } catch (err: any) {
       alert(err.response?.data?.message ?? "Failed to save assessment")
     } finally { setSaving(false) }
-  }
-
-  const COLORS: Record<string, string> = {
-    "ADOS-2": "#1a8c6e", "CARS-2": "#2563a8", "Vineland-3": "#7c3aed",
-    "Sensory Profile 2": "#f97316", "ADOS-2 Module 1": "#22c55e", "FBA": "#d97706",
-    "OT Initial Assessment": "#3b82f6",
-    "SLT Initial Assessment": "#22c55e",
   }
 
   return (
@@ -163,7 +171,7 @@ export default function Assessments() {
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 16 }}>
 
-        {/* Templates with guidance */}
+        {/* Templates */}
         <div>
           <div style={{ background: "white", border: "1px solid #d6e8e0", borderRadius: 14, overflow: "hidden", marginBottom: 14 }}>
             <div style={{ padding: "14px 18px", borderBottom: "1px solid #d6e8e0" }}>
@@ -184,7 +192,7 @@ export default function Assessments() {
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <button
-                        onClick={e => { e.stopPropagation(); setSelectedTemplate(t.name); setShowForm(true) }}
+                        onClick={e => { e.stopPropagation(); setSelectedTemplate(t.name); setStructuredData({}); setShowForm(true) }}
                         style={{ fontSize: 12, padding: "4px 10px", borderRadius: 6, border: "1px solid #d6e8e0", background: "white", color: "#1a8c6e", cursor: "pointer", fontWeight: 500, flexShrink: 0 }}
                       >
                         Use
@@ -217,11 +225,9 @@ export default function Assessments() {
         {/* Recent assessments */}
         <div>
           <div style={{ background: "white", border: "1px solid #d6e8e0", borderRadius: 14, overflow: "hidden" }}>
-            <div style={{ padding: "14px 18px", borderBottom: "1px solid #d6e8e0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div>
-                <div style={{ fontSize: 13.5, fontWeight: 600, color: "#1a2724" }}>Recent Assessments</div>
-                <div style={{ fontSize: 11.5, color: "#8aab9e", marginTop: 2 }}>{assessments.length} completed</div>
-              </div>
+            <div style={{ padding: "14px 18px", borderBottom: "1px solid #d6e8e0" }}>
+              <div style={{ fontSize: 13.5, fontWeight: 600, color: "#1a2724" }}>Recent Assessments</div>
+              <div style={{ fontSize: 11.5, color: "#8aab9e", marginTop: 2 }}>{assessments.length} completed</div>
             </div>
             <div style={{ padding: "0 18px" }}>
               {loading ? (
@@ -284,7 +290,7 @@ export default function Assessments() {
 
       {showForm && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
-          <div style={{ background: "white", borderRadius: 16, padding: 28, width: 560, maxHeight: "90vh", overflowY: "auto" }}>
+          <div style={{ background: "white", borderRadius: 16, padding: 28, width: 620, maxHeight: "90vh", overflowY: "auto" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
               <h2 style={{ fontSize: 16, fontWeight: 600, color: "#1a2724", margin: 0 }}>Record Assessment</h2>
               <button onClick={() => setShowForm(false)} style={{ border: "none", background: "none", fontSize: 20, cursor: "pointer", color: "#8aab9e" }}>×</button>
@@ -314,7 +320,7 @@ export default function Assessments() {
                 </div>
                 <div>
                   <label style={{ fontSize: 12, color: "#4a6359", display: "block", marginBottom: 4 }}>Assessment tool</label>
-                  <select required value={selectedTemplate} onChange={e => setSelectedTemplate(e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #d6e8e0", fontSize: 13, boxSizing: "border-box" }}>
+                  <select required value={selectedTemplate} onChange={e => { setSelectedTemplate(e.target.value); setStructuredData({}) }} style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #d6e8e0", fontSize: 13, boxSizing: "border-box" }}>
                     <option value="">Select tool...</option>
                     {TEMPLATES.map((t, i) => <option key={i} value={t.name}>{t.name} — {t.full}</option>)}
                   </select>
@@ -328,8 +334,49 @@ export default function Assessments() {
                   <input type="date" required value={assessmentDate} onChange={e => setAssessmentDate(e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #d6e8e0", fontSize: 13, boxSizing: "border-box" }} />
                 </div>
               </div>
+
+              {/* Structured OT/SLT sections */}
+              {(() => {
+                const sections = getSectionsForTemplate(selectedTemplate)
+                if (!sections) return null
+                return (
+                  <div style={{ marginBottom: 16, background: "#fafbfa", borderRadius: 10, padding: "14px 16px", border: "1px solid #eef2f0" }}>
+                    {sections.map((section, si) => (
+                      <div key={si} style={{ marginBottom: 16 }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: "#1a8c6e", textTransform: "uppercase", marginBottom: 8, borderBottom: "1px solid #e6f4ef", paddingBottom: 4 }}>
+                          {section.title}
+                        </div>
+                        <div style={{ display: "grid", gridTemplateColumns: section.fields.some(f=>f.type==="textarea") ? "1fr" : "1fr 1fr", gap: 10 }}>
+                          {section.fields.map(field => (
+                            <div key={field.key} style={field.type==="textarea" ? { gridColumn: "1 / -1" } : {}}>
+                              <label style={{ fontSize: 11.5, color: "#4a6359", display: "block", marginBottom: 3 }}>{field.label}</label>
+                              {field.type === "textarea" ? (
+                                <textarea
+                                  rows={2}
+                                  value={structuredData[field.key] ?? ""}
+                                  onChange={e => setStructuredData(p => ({...p, [field.key]: e.target.value}))}
+                                  style={{ width: "100%", padding: "7px 10px", borderRadius: 6, border: "1px solid #d6e8e0", fontSize: 12.5, boxSizing: "border-box", resize: "vertical" }}
+                                />
+                              ) : (
+                                <input
+                                  value={structuredData[field.key] ?? ""}
+                                  onChange={e => setStructuredData(p => ({...p, [field.key]: e.target.value}))}
+                                  style={{ width: "100%", padding: "7px 10px", borderRadius: 6, border: "1px solid #d6e8e0", fontSize: 12.5, boxSizing: "border-box" }}
+                                />
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              })()}
+
               <div style={{ marginBottom: 12 }}>
-                <label style={{ fontSize: 12, color: "#4a6359", display: "block", marginBottom: 4 }}>Key findings</label>
+                <label style={{ fontSize: 12, color: "#4a6359", display: "block", marginBottom: 4 }}>
+                  {getSectionsForTemplate(selectedTemplate) ? "Additional findings (optional)" : "Key findings"}
+                </label>
                 <textarea value={findings} onChange={e => setFindings(e.target.value)} rows={3} placeholder="Summary of assessment findings..." style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #d6e8e0", fontSize: 13, boxSizing: "border-box", resize: "vertical" }} />
               </div>
               <div style={{ marginBottom: 20 }}>
