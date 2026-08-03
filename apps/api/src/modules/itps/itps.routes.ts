@@ -188,17 +188,40 @@ export async function itpRoutes(fastify: FastifyInstance) {
   fastify.patch("/goals/:id", {
     preHandler: requireRole("SUPER_ADMIN","MANAGER","THERAPIST")
   }, async (request, reply) => {
-    const { id } = request.params as { id: string }
-    const body   = request.body as any
+    const { id }   = request.params as { id: string }
+    const user     = request.user as JWTPayload
+    const body     = request.body as any
+
+    const existing = await prisma.goal.findUnique({ where: { id } })
+    if (!existing) return reply.status(404).send({ message: "Goal not found" })
+
+  // Only MANAGER/SUPER_ADMIN can modify an already-achieved goal
+  if (existing.isAchieved && user.role === "THERAPIST") {
+    return reply.status(403).send({
+      message: "This goal is marked achieved. Only a Manager or Super Admin can reopen it."
+    })
+  }
+
     const isAchieved = body.progressPct >= 100
-    const goal   = await prisma.goal.update({
+    const goal = await prisma.goal.update({
       where: { id },
       data: {
-        progressPct: body.progressPct,
-        isAchieved,
-        achievedAt:  isAchieved ? new Date() : null,
-      },
-    })
-    return reply.send(goal)
+      progressPct: body.progressPct,
+      isAchieved,
+      achievedAt: isAchieved ? new Date() : null,
+    },
+  })
+
+  // Log the progress change
+  await prisma.goalProgressLog.create({
+    data: {
+      goalId:     id,
+      pct:        body.progressPct,
+      note:       body.note ?? `Updated by ${user.role}`,
+      loggedById: user.id,
+    }
+  })
+
+  return reply.send(goal)
   })
 }
