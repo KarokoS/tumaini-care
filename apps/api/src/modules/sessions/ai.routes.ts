@@ -82,6 +82,104 @@ Return ONLY a JSON object with keys: subjective, objective, assessment, plan`
     }
   })
 
+  // ── AI goal progress suggestion ──
+fastify.post("/ai/goal-progress-suggest", {
+  preHandler: requireRole("SUPER_ADMIN","MANAGER","THERAPIST")
+}, async (request, reply) => {
+  const { clientId, subjective, objective, assessment, plan } = request.body as {
+    clientId: string
+    subjective: string
+    objective: string
+    assessment: string
+    plan: string
+  }
+
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return reply.status(503).send({ message: "AI not configured" })
+  }
+
+  const client = await prisma.client.findUnique({
+    where: { id: clientId },
+    include: {
+      itps: {
+        where: { status: "ACTIVE" },
+        include: { goals: { where: { isAchieved: false } } },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+      }
+    }
+  })
+
+  const goals = client?.itps?.[0]?.goals ?? []
+  if (goals.length === 0) {
+    return reply.send({ suggestions: [] })
+  }
+
+  const goalList = goals.map((g, i) => `${i+1}. [${g.id}] ${g.title} (currently ${g.progressPct}%)`).join('\n')
+
+  const prompt = `You are reviewing a therapy session note to identify which of the client's active goals were worked on, and suggest a small progress increment.
+
+Session note:
+Subjective: ${subjective}
+Objective: ${objective}
+Assessment: ${assessment}
+Plan: ${plan}
+
+Active goals:
+${goalList}
+
+For each goal that the session note indicates was actually addressed in this session, suggest whether to increment progress by a small amount (typically 5%, but use 0 if no real progress was shown, or up to 10% if clear improvement was described). Do NOT suggest a goal that wasn't mentioned or worked on in the note.
+
+Return ONLY a JSON array like:
+[{"goalId": "...", "increment": 5, "reason": "one short sentence explaining why"}]
+
+Only include goals that were genuinely addressed. If none were clearly addressed, return an empty array [].`
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type':      'application/json',
+        'x-api-key':         process.env.ANTHROPIC_API_KEY!,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model:      'claude-sonnet-4-6',
+        max_tokens: 800,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    })
+
+    const data = await response.json() as any
+    const text = data.content?.[0]?.text ?? ''
+    const jsonMatch = text.match(/\[[\s\S]*\]/)
+    if (!jsonMatch) return reply.send({ suggestions: [] })
+
+    const suggestions = JSON.parse(jsonMatch[0])
+
+    // Attach current goal info for display
+    const enriched = suggestions
+      .filter((s: any) => goals.some(g => g.id === s.goalId))
+      .map((s: any) => {
+        const goal = goals.find(g => g.id === s.goalId)!
+        return {
+          goalId:      s.goalId,
+          title:       goal.title,
+          currentPct:  goal.progressPct,
+          increment:   Math.max(0, Math.min(10, s.increment ?? 5)),
+          newPct:      Math.min(100, goal.progressPct + Math.max(0, Math.min(10, s.increment ?? 5))),
+          reason:      s.reason ?? "",
+        }
+      })
+      .filter((s: any) => s.increment > 0)
+
+    return reply.send({ suggestions: enriched })
+  } catch (err) {
+    fastify.log.error(err)
+    return reply.status(500).send({ message: 'AI goal analysis failed' })
+  }
+})
+
   // ── AI assessment findings ──
   fastify.post("/ai/assessment-draft", {
     preHandler: requireRole("SUPER_ADMIN","MANAGER","THERAPIST")

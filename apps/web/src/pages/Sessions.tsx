@@ -28,6 +28,10 @@ export default function Sessions() {
   const [aiLoading, setAiLoading]       = useState(false)
   const [aiError, setAiError]           = useState("")
   const [markComplete, setMarkComplete] = useState(true)
+  const [goalSuggestions, setGoalSuggestions] = useState<any[]>([])
+  const [showGoalSuggestions, setShowGoalSuggestions] = useState(false)
+  const [applyingGoals, setApplyingGoals] = useState(false)
+  const [checkedGoals, setCheckedGoals] = useState<Record<string, boolean>>({})
 
   const [subjective, setSubjective] = useState("")
   const [objective, setObjective]   = useState("")
@@ -132,6 +136,24 @@ setAppointments(appts)
         sessionNote: savedNote,
       }
     }))
+
+    // After saving note, check for goal progress suggestions
+try {
+  const suggestRes = await api.post("/ai/goal-progress-suggest", {
+    clientId: selectedAppt.clientId ?? selectedAppt.client?.id,
+    subjective, objective, assessment, plan,
+  })
+  const suggestions = suggestRes.data.suggestions ?? []
+  if (suggestions.length > 0) {
+    setGoalSuggestions(suggestions)
+    const initialChecked: Record<string, boolean> = {}
+    suggestions.forEach((s: any) => { initialChecked[s.goalId] = true })
+    setCheckedGoals(initialChecked)
+    setShowGoalSuggestions(true)
+  }
+} catch (err) {
+  console.warn("Goal suggestion check failed:", err)
+}
 
     setShowNoteForm(false)
 
@@ -365,6 +387,59 @@ setAppointments(appts)
           </div>
         </div>
       )}
+      {/* AI Goal Progress Suggestions */}
+{showGoalSuggestions && goalSuggestions.length > 0 && (
+  <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:110, padding:16 }}>
+    <div style={{ background:"white", borderRadius:16, width:"100%", maxWidth:520, padding:24 }}>
+      <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:6 }}>
+        <span style={{ fontSize:20 }}>✨</span>
+        <div style={{ fontSize:15, fontWeight:600, color:"#1a2724" }}>AI Goal Progress Suggestions</div>
+      </div>
+      <div style={{ fontSize:12.5, color:"#8aab9e", marginBottom:16 }}>
+        Based on this session note, review and confirm which goals to update. Uncheck any you disagree with.
+      </div>
+
+      <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:20 }}>
+        {goalSuggestions.map((s, i) => (
+          <label key={i} style={{ display:"flex", gap:10, padding:"12px 14px", borderRadius:10, background:"#f8faf9", cursor:"pointer", alignItems:"flex-start" }}>
+            <input
+              type="checkbox"
+              checked={checkedGoals[s.goalId] ?? false}
+              onChange={e => setCheckedGoals(p => ({...p, [s.goalId]: e.target.checked}))}
+              style={{ marginTop:3 }}
+            />
+            <div style={{ flex:1 }}>
+              <div style={{ fontSize:13, fontWeight:500, color:"#1a2724" }}>{s.title}</div>
+              <div style={{ fontSize:11.5, color:"#8aab9e", marginTop:2 }}>{s.reason}</div>
+              <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:6 }}>
+                <span style={{ fontSize:12, color:"#8aab9e" }}>{s.currentPct}%</span>
+                <span style={{ fontSize:12, color:"#1a8c6e" }}>→</span>
+                <span style={{ fontSize:13, fontWeight:600, color:"#1a8c6e" }}>{s.newPct}%</span>
+                <span style={{ fontSize:11, padding:"1px 7px", borderRadius:20, background:"#e6f4ef", color:"#1a8c6e", fontWeight:600 }}>+{s.increment}%</span>
+              </div>
+            </div>
+          </label>
+        ))}
+      </div>
+
+      <div style={{ display:"flex", gap:10, justifyContent:"flex-end" }}>
+        <button
+          onClick={() => { setShowGoalSuggestions(false); setGoalSuggestions([]) }}
+          style={{ padding:"9px 16px", borderRadius:8, border:"1px solid #d6e8e0", background:"white", fontSize:13, cursor:"pointer", color:"#4a6359" }}
+        >
+          Skip
+        </button>
+        <button
+          onClick={applyGoalSuggestions}
+          disabled={applyingGoals || Object.values(checkedGoals).every(v => !v)}
+          style={{ padding:"9px 16px", borderRadius:8, border:"none", background:"#1a8c6e", color:"white", fontSize:13, fontWeight:500, cursor:"pointer", opacity:applyingGoals?0.7:1 }}
+        >
+          {applyingGoals ? "Updating..." : "Apply Selected Updates"}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </Layout>
   )
 }
