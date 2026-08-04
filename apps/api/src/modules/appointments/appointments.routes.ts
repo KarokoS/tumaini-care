@@ -49,13 +49,7 @@ if (kenyaHour < 8 || kenyaHour >= 17) {
   })
 }
 
-// Prevent booking in the past
-const now = new Date()
-if (apptDate < now) {
-  return reply.status(400).send({
-    message: "Cannot book an appointment in the past. Please select a future date and time."
-  })
-}
+
 
   // Check for double booking — same therapist, same time slot
   if (body.therapistId) {
@@ -76,7 +70,7 @@ if (apptDate < now) {
     select: { scheduledAt: true, durationMin: true }
   })
 
-  const hasConflict = candidates.some(c => {
+    const hasConflict = candidates.some(c => {
     const existingStart = new Date(c.scheduledAt)
     const existingEnd   = new Date(existingStart.getTime() + (c.durationMin ?? 50) * 60000)
     // True overlap only: existing starts before new ends AND existing ends after new starts
