@@ -268,7 +268,7 @@ model Document {
 
 model AuditLog {
   id        String   @id @default(uuid())
-  staffId   String
+  staffId   String?
   action    String
   entity    String
   entityId  String
@@ -276,7 +276,7 @@ model AuditLog {
   userAgent String?
   metadata  Json?
   createdAt DateTime @default(now())
-  staff     Staff    @relation(fields: [staffId], references: [id])
+  staff     Staff?   @relation(fields: [staffId], references: [id])
 
   @@index([entity, entityId])
   @@index([staffId, createdAt])
