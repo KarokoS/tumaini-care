@@ -104,7 +104,7 @@ setAppointments(appts)
     } finally { setAiLoading(false) }
   }
 
-  async function saveNote(e: React.FormEvent) {
+async function saveNote(e: React.FormEvent) {
   e.preventDefault()
   if (!selectedAppt) return
   setSavingNote(true)
@@ -137,23 +137,23 @@ setAppointments(appts)
       }
     }))
 
-    // After saving note, check for goal progress suggestions
-try {
-  const suggestRes = await api.post("/ai/goal-progress-suggest", {
-    clientId: selectedAppt.clientId ?? selectedAppt.client?.id,
-    subjective, objective, assessment, plan,
-  })
-  const suggestions = suggestRes.data.suggestions ?? []
-  if (suggestions.length > 0) {
-    setGoalSuggestions(suggestions)
-    const initialChecked: Record<string, boolean> = {}
-    suggestions.forEach((s: any) => { initialChecked[s.goalId] = true })
-    setCheckedGoals(initialChecked)
-    setShowGoalSuggestions(true)
-  }
-} catch (err) {
-  console.warn("Goal suggestion check failed:", err)
-}
+    // AI goal progress suggestions
+    try {
+      const suggestRes = await api.post("/ai/goal-progress-suggest", {
+        clientId: selectedAppt.clientId ?? selectedAppt.client?.id,
+        subjective, objective, assessment, plan,
+      })
+      const suggestions = suggestRes.data.suggestions ?? []
+      if (suggestions.length > 0) {
+        setGoalSuggestions(suggestions)
+        const initialChecked: Record<string, boolean> = {}
+        suggestions.forEach((s: any) => { initialChecked[s.goalId] = true })
+        setCheckedGoals(initialChecked)
+        setShowGoalSuggestions(true)
+      }
+    } catch (err) {
+      console.warn("Goal suggestion check failed:", err)
+    }
 
     setShowNoteForm(false)
 
