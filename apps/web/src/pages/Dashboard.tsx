@@ -23,13 +23,13 @@ export default function Dashboard() {
       api.get("/itps").catch(() => ({ data: [] })),
       api.get("/clients/alerts/missing-sessions").catch(() => ({ data: { count:0 } })),
       api.get("/itps/review-alerts").catch(() => ({ data:{ counts:{ total:0 } } })),
-    ]).then(([c,a,inv,p,alerts]: any) => {
+    ]).then(([c,a,inv,p,alerts,itpAlertsRes]: any) => {
       setClients(c.data)
       setAppointments(a.data)
       setInvoices(inv.data)
       setPlans(p.data)
       setMissingCount(alerts.data?.count ?? 0)
-      setItpAlertCount(itpAlerts.data?.counts?.total ?? 0)
+      setItpAlertCount(itpAlertsRes.data?.counts?.total ?? 0)
     }).finally(() => setLoading(false))
   }, [])
 
