@@ -104,7 +104,7 @@ setAppointments(appts)
     } finally { setAiLoading(false) }
   }
 
-async function saveNote(e: React.FormEvent) {
+  async function saveNote(e: React.FormEvent) {
   e.preventDefault()
   if (!selectedAppt) return
   setSavingNote(true)
@@ -126,23 +126,6 @@ async function saveNote(e: React.FormEvent) {
     if (markComplete && selectedAppt.status !== "COMPLETED") {
       await api.patch(`/appointments/${selectedAppt.id}`, { status: "COMPLETED" })
     }
-
-    async function applyGoalSuggestions() {
-  setApplyingGoals(true)
-  try {
-    const toApply = goalSuggestions.filter(s => checkedGoals[s.goalId])
-    for (const s of toApply) {
-      await api.patch(`/goals/${s.goalId}`, {
-        progressPct: s.newPct,
-        note: `AI-assisted update from session note: ${s.reason}`,
-      })
-    }
-    setShowGoalSuggestions(false)
-    setGoalSuggestions([])
-  } catch (err: any) {
-    alert(err.response?.data?.message ?? "Failed to update some goals")
-  } finally { setApplyingGoals(false) }
-}
 
     // Optimistically update local state immediately
     setAppointments(prev => prev.map(a => {
@@ -180,6 +163,23 @@ async function saveNote(e: React.FormEvent) {
   } catch (err: any) {
     alert(err.response?.data?.message ?? "Failed to save session note")
   } finally { setSavingNote(false) }
+}
+
+async function applyGoalSuggestions() {
+  setApplyingGoals(true)
+  try {
+    const toApply = goalSuggestions.filter(s => checkedGoals[s.goalId])
+    for (const s of toApply) {
+      await api.patch(`/goals/${s.goalId}`, {
+        progressPct: s.newPct,
+        note: `AI-assisted update from session note: ${s.reason}`,
+      })
+    }
+    setShowGoalSuggestions(false)
+    setGoalSuggestions([])
+  } catch (err: any) {
+    alert(err.response?.data?.message ?? "Failed to update some goals")
+  } finally { setApplyingGoals(false) }
 }
 
   const filtered = appointments.filter(a => {
