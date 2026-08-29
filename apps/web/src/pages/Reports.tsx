@@ -578,6 +578,77 @@ async function generateAnnualReport() {
             </div>
           </div>
 
+          {/* Newly Registered Clients */}
+{(() => {
+  const fromD = reportFrom ? new Date(reportFrom) : null
+  const toD   = reportTo   ? new Date(reportTo)   : null
+
+  const newClientsList = (clients ?? []).filter((c: any) => {
+    if (!fromD || !toD || !c.createdAt) return false
+    const d = new Date(c.createdAt)
+    return d >= fromD && d <= toD
+  })
+
+  function calcAge(dob: string) {
+    if (!dob) return "—"
+    return Math.floor((new Date().getTime() - new Date(dob).getTime()) / (1000*60*60*24*365))
+  }
+
+  return (
+    <div style={{ background:"white", border:"1px solid #d6e8e0", borderRadius:14, overflow:"hidden", marginBottom:16 }}>
+      <div style={{ padding:"14px 18px", borderBottom:"1px solid #d6e8e0", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+        <div>
+          <div style={{ fontSize:13.5, fontWeight:600, color:"#1a2724" }}>Newly Registered Clients</div>
+          <div style={{ fontSize:11.5, color:"#8aab9e", marginTop:2 }}>{newClientsList.length} clients registered in this period</div>
+        </div>
+        <button
+          onClick={() => {
+            const csv = [
+              ["Name","Gender","Age","Diagnosis","Registered On"].join(","),
+              ...newClientsList.map((c:any) =>
+                [c.fullName, c.gender ?? "—", calcAge(c.dob), c.diagnosis ?? "—", new Date(c.createdAt).toLocaleDateString('en-KE')].join(",")
+              )
+            ].join("\n")
+            const blob = new Blob([csv], { type: "text/csv" })
+            const url  = URL.createObjectURL(blob)
+            const a    = document.createElement("a")
+            a.href = url; a.download = "new-clients.csv"; a.click()
+          }}
+          style={{ padding:"6px 14px", borderRadius:8, border:"1px solid #d6e8e0", background:"white", fontSize:12, cursor:"pointer", color:"#4a6359" }}
+        >
+          ⬇ Export CSV
+        </button>
+      </div>
+      <div style={{ padding:"0 18px" }}>
+        {newClientsList.length === 0 ? (
+          <div style={{ padding:24, textAlign:"center", color:"#8aab9e", fontSize:13 }}>No new clients in this period</div>
+        ) : (
+          <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
+            <thead>
+              <tr style={{ background:"#f8faf9" }}>
+                {["Name","Gender","Age","Diagnosis","Registered On"].map((h,i) => (
+                  <th key={i} style={{ padding:"8px 10px", textAlign:"left", fontSize:11, fontWeight:600, color:"#8aab9e", textTransform:"uppercase" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {newClientsList.map((c:any, i:number) => (
+                <tr key={i} style={{ borderBottom: i<newClientsList.length-1 ? "1px solid #f0f4f2" : "none" }}>
+                  <td style={{ padding:"8px 10px", fontWeight:500, color:"#1a2724" }}>{c.fullName}</td>
+                  <td style={{ padding:"8px 10px", color:"#4a6359" }}>{c.gender ?? "—"}</td>
+                  <td style={{ padding:"8px 10px", color:"#4a6359" }}>{calcAge(c.dob)} yrs</td>
+                  <td style={{ padding:"8px 10px", color:"#4a6359" }}>{c.diagnosis ?? "—"}</td>
+                  <td style={{ padding:"8px 10px", color:"#8aab9e", fontSize:12 }}>{new Date(c.createdAt).toLocaleDateString('en-KE',{day:'numeric',month:'short',year:'numeric'})}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  )
+})()}
+
           {/* ── Pro Bono Report ── */}
           {(() => {
             const proBonoClients   = clients.filter((c: any) => c.isProBono)
