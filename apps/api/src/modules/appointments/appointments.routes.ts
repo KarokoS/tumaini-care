@@ -40,7 +40,44 @@ export async function appointmentRoutes(fastify: FastifyInstance) {
 }, async (request, reply) => {
   const body = request.body as any
 
+// Check working hours (8AM - 5PM, Kenya time)
+const apptDate  = new Date(body.scheduledAt)
+const kenyaHour = (apptDate.getUTCHours() + 3) % 24
+if (kenyaHour < 8 || kenyaHour >= 17) {
+  return reply.status(400).send({
+    message: `Sessions can only be booked between 8:00 AM and 5:00 PM (Kenya time). You selected ${kenyaHour}:${String(apptDate.getUTCMinutes()).padStart(2,'0')}.`
+  })
+}
 
+// Prevent booking in the past
+// Temporarily bypassable via ALLOW_PAST_BOOKINGS=true env var for manual data
+// corrections. Remove this env var (or set it to anything other than "true")
+// as soon as the fix is done — this guard exists to stop accidental backdating.
+const now = new Date()
+if (apptDate < now && process.env.ALLOW_PAST_BOOKINGS !== 'true') {
+  return reply.status(400).send({
+    message: "Cannot book an appointment in the past. Please select a future date and time."
+  })
+}
+
+  // Check for double booking — same therapist, same time slot
+  if (body.therapistId) {
+  const slotStart = new Date(body.scheduledAt)
+  const duration  = body.durationMin ?? 50
+  const slotEnd   = new Date(slotStart.getTime() + duration * 60000)
+
+  // Get candidate appointments for that therapist on the same day
+  const dayStart = new Date(slotStart); dayStart.setHours(0,0,0,0)
+  const dayEnd   = new Date(slotStart); dayEnd.setHours(23,59,59,999)
+
+  const candidates = await prisma.appointment.findMany({
+    where: {
+      therapistId: body.therapistId,
+      status:      { notIn: ['CANCELLED', 'NO_SHOW'] },
+      scheduledAt: { gte: dayStart, lte: dayEnd },
+    },
+    select: { scheduledAt: true, durationMin: true }
+  })
 
     const hasConflict = candidates.some(c => {
     const existingStart = new Date(c.scheduledAt)
