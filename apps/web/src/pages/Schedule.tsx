@@ -422,6 +422,7 @@ if (h < 8 || h >= 17) {
                     <option value="COMPLETED">Completed</option>
                     <option value="CANCELLED">Cancelled</option>
                     <option value="NO_SHOW">No Show</option>
+                    <option value="LATE">Late</option>
                   </select>
                 </div>
               )}

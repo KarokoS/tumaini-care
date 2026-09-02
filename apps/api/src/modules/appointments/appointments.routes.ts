@@ -49,8 +49,6 @@ if (kenyaHour < 8 || kenyaHour >= 17) {
   })
 }
 
-
-
   // Check for double booking — same therapist, same time slot
   if (body.therapistId) {
   const slotStart = new Date(body.scheduledAt)
