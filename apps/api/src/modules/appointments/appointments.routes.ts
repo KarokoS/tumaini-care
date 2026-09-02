@@ -42,25 +42,6 @@ export async function appointmentRoutes(fastify: FastifyInstance) {
 
 
 
-  // Check for double booking — same therapist, same time slot
-  if (body.therapistId) {
-  const slotStart = new Date(body.scheduledAt)
-  const duration  = body.durationMin ?? 50
-  const slotEnd   = new Date(slotStart.getTime() + duration * 60000)
-
-  // Get candidate appointments for that therapist on the same day
-  const dayStart = new Date(slotStart); dayStart.setHours(0,0,0,0)
-  const dayEnd   = new Date(slotStart); dayEnd.setHours(23,59,59,999)
-
-  const candidates = await prisma.appointment.findMany({
-    where: {
-      therapistId: body.therapistId,
-      status:      { notIn: ['CANCELLED', 'NO_SHOW'] },
-      scheduledAt: { gte: dayStart, lte: dayEnd },
-    },
-    select: { scheduledAt: true, durationMin: true }
-  })
-
     const hasConflict = candidates.some(c => {
     const existingStart = new Date(c.scheduledAt)
     const existingEnd   = new Date(existingStart.getTime() + (c.durationMin ?? 50) * 60000)
