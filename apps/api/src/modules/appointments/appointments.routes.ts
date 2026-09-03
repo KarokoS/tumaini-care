@@ -46,7 +46,7 @@ export async function appointmentRoutes(fastify: FastifyInstance) {
 //if (kenyaHour < 8 || kenyaHour >= 17) {
 //  return reply.status(400).send({
 //    message: `Sessions can only be booked between 8:00 AM and 5:00 PM (Kenya time). You selected ${kenyaHour}:${String(apptDate.getUTCMinutes()).padStart(2,'0')}.`
-//  })
+  })
 }
 
 // TEMPORARILY DISABLED for schedule fix
@@ -298,10 +298,10 @@ export async function appointmentRoutes(fastify: FastifyInstance) {
   })
 
   // ── Create recurring appointments ──
- // fastify.post('/appointments/recurring', {
- //   preHandler: requireRole('SUPER_ADMIN', 'MANAGER', 'RECEPTIONIST')
-//  }, async (request, reply) => {
- //   const body = request.body as {
+  fastify.post('/appointments/recurring', {
+    preHandler: requireRole('SUPER_ADMIN', 'MANAGER', 'RECEPTIONIST')
+  }, async (request, reply) => {
+    const body = request.body as {
       clientId:    string
       therapistId: string
       therapyType: string
