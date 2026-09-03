@@ -41,11 +41,11 @@ export async function appointmentRoutes(fastify: FastifyInstance) {
   const body = request.body as any
 
 // Check working hours (8AM - 5PM, Kenya time)
-//const apptDate  = new Date(body.scheduledAt)
-//const kenyaHour = (apptDate.getUTCHours() + 3) % 24
-//if (kenyaHour < 8 || kenyaHour >= 17) {
-//  return reply.status(400).send({
-//    message: `Sessions can only be booked between 8:00 AM and 5:00 PM (Kenya time). You selected ${kenyaHour}:${String(apptDate.getUTCMinutes()).padStart(2,'0')}.`
+const apptDate  = new Date(body.scheduledAt)
+const kenyaHour = (apptDate.getUTCHours() + 3) % 24
+if (kenyaHour < 8 || kenyaHour >= 17) {
+  return reply.status(400).send({
+    message: `Sessions can only be booked between 8:00 AM and 5:00 PM (Kenya time). You selected ${kenyaHour}:${String(apptDate.getUTCMinutes()).padStart(2,'0')}.`
   })
 }
 
