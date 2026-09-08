@@ -49,13 +49,13 @@ if (kenyaHour < 8 || kenyaHour >= 17) {
   })
 }
 
-// TEMPORARILY DISABLED for schedule fix
-// const now = new Date()
-// if (apptDate < now) {
-//   return reply.status(400).send({
-//     message: "Cannot book an appointment in the past. Please select a future date and time."
-//   })
-// }
+ // Prevent booking in the past
+ const now = new Date()
+ if (apptDate < now) {
+   return reply.status(400).send({
+     message: "Cannot book an appointment in the past. Please select a future date and time."
+   })
+ }
 
   // Check for double booking — same therapist, same time slot
   if (body.therapistId) {
