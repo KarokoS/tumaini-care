@@ -839,4 +839,85 @@ export function generateAnnualReportPDF(data: {
 
   addFooter(doc)
   doc.save(`Tumaini-Annual-Report-${period.label.replace(/\s/g,"-")}.pdf`)
+
+  export function generateParentProgressReportPDF(client: any, progress: any) {
+  const doc = new jsPDF()
+  let y = addHeader(doc, "Progress Report", `${client.fullName} · Prepared for parent/guardian`)
+
+  const age = Math.floor((new Date().getTime() - new Date(client.dob).getTime()) / (1000*60*60*24*365))
+
+  doc.setFillColor(...LIGHT)
+  doc.roundedRect(14, y, 182, 20, 2, 2, "F")
+  doc.setFontSize(9)
+  doc.setFont("helvetica","bold")
+  doc.setTextColor(...DARK)
+  doc.text("Child:", 18, y+8)
+  doc.setFont("helvetica","normal")
+  doc.text(`${client.fullName}, ${age} years`, 40, y+8)
+  doc.setFont("helvetica","bold")
+  doc.text("Report date:", 18, y+15)
+  doc.setFont("helvetica","normal")
+  doc.text(new Date().toLocaleDateString("en-KE",{day:"numeric",month:"long",year:"numeric"}), 55, y+15)
+  y += 28
+
+  const s = progress.summary
+  doc.setFontSize(10)
+  doc.setFont("helvetica","bold")
+  doc.setTextColor(...TEAL)
+  doc.text("Attendance Summary", 14, y)
+  y += 6
+
+  autoTable(doc, {
+    startY: y,
+    head: [["Total Sessions","Completed","Attendance Rate"]],
+    body: [[s.totalSessions, s.completedSessions, s.attendanceRate+"%"]],
+    headStyles: { fillColor:TEAL, textColor:[255,255,255], fontSize:8 },
+    bodyStyles: { fontSize:9, halign:"center" },
+    margin: { left:14, right:14 },
+  })
+  y = (doc as any).lastAutoTable.finalY + 12
+
+  doc.setFontSize(10)
+  doc.setFont("helvetica","bold")
+  doc.setTextColor(...TEAL)
+  doc.text("Therapy Goals Progress", 14, y)
+  y += 6
+
+  if (!progress.goals || progress.goals.length === 0) {
+    doc.setFontSize(9)
+    doc.setFont("helvetica","normal")
+    doc.setTextColor(...MUTED)
+    doc.text("No goals recorded yet.", 16, y)
+    y += 10
+  } else {
+    progress.goals.forEach((g: any) => {
+      if (y > 260) { doc.addPage(); y = 20 }
+      doc.setFontSize(9)
+      doc.setFont("helvetica","bold")
+      doc.setTextColor(...DARK)
+      const titleLines = doc.splitTextToSize(g.title, 140)
+      doc.text(titleLines, 14, y)
+      doc.setTextColor(g.isAchieved ? TEAL[0] : 37, g.isAchieved ? TEAL[1] : 99, g.isAchieved ? TEAL[2] : 168)
+      doc.text(`${g.currentPct}%${g.isAchieved ? " ✓ Achieved" : ""}`, 196, y, { align:"right" })
+      y += titleLines.length * 5 + 2
+
+      doc.setFillColor(...LIGHT)
+      doc.roundedRect(14, y, 182, 4, 2, 2, "F")
+      doc.setFillColor(g.isAchieved ? TEAL[0] : 37, g.isAchieved ? TEAL[1] : 99, g.isAchieved ? TEAL[2] : 168)
+      doc.roundedRect(14, y, 182 * (g.currentPct/100), 4, 2, 2, "F")
+      y += 10
+    })
+  }
+
+  y += 4
+  doc.setFontSize(8.5)
+  doc.setFont("helvetica","italic")
+  doc.setTextColor(...MUTED)
+  const note = "This report reflects progress recorded in the Tumaini Care system. For questions about your child's therapy plan, please speak with their assigned therapist."
+  const noteLines = doc.splitTextToSize(note, 182)
+  doc.text(noteLines, 14, y)
+
+  addFooter(doc)
+  doc.save(`${client.fullName.replace(/\s+/g,"-")}-Progress-Report.pdf`)
+}
 }

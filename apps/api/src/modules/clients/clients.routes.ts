@@ -4,6 +4,7 @@ import { getAllClients, getClientById, createClient, updateClient, getClientTime
 import { requireRole, JWTPayload } from '../../shared/middleware/rbac'
 import { logAction } from '../../shared/middleware/audit'
 import { sendWelcomeSMS } from '../../shared/sms'
+import { prisma } from '../../shared/prisma'
 
 const createClientSchema = z.object({
   fullName:     z.string().min(2),
@@ -57,6 +58,21 @@ export async function clientRoutes(fastify: FastifyInstance) {
 
     const client = await createClient({ ...body.data, branchId: user.branchId })
     await logAction(request, 'CREATE', 'Client', client.id)
+
+    fastify.patch("/guardians/:id", {
+  preHandler: requireRole("SUPER_ADMIN","MANAGER","RECEPTIONIST")
+}, async (request, reply) => {
+  const { id } = request.params as { id: string }
+  const body = request.body as any
+  const data: any = {}
+  if (body.fullName !== undefined)     data.fullName = body.fullName
+  if (body.relationship !== undefined) data.relationship = body.relationship
+  if (body.phone !== undefined)        data.phone = body.phone
+  if (body.email !== undefined)        data.email = body.email
+
+  const guardian = await prisma.guardian.update({ where: { id }, data })
+  return reply.send(guardian)
+  })
 
     // Send welcome SMS to primary guardian
     try {

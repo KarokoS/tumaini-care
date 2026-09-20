@@ -3,8 +3,10 @@ import { useParams, useNavigate } from "react-router-dom"
 import api from "../lib/api"
 import Layout from "../components/Layout"
 import { useAuthStore } from "../stores/auth.store"
+import { generateParentProgressReportPDF } from "../lib/pdf"
 
 type Guardian = {
+  id:           string
   fullName:     string
   relationship: string
   phone:        string
@@ -46,7 +48,7 @@ export default function ClientDetail() {
   const navigate    = useNavigate()
   const { user }    = useAuthStore()
   const isSuperAdmin = user?.role === "SUPER_ADMIN"
-  const canEdit = user?.role === "SUPER_ADMIN" || user?.role === "MANAGER" || user?.role === "RECEPTIONIST" || user?.role === "THERAPIST"
+  const canEdit      = user?.role === "SUPER_ADMIN" || user?.role === "MANAGER" || user?.role === "RECEPTIONIST"
 
   const [client, setClient]         = useState<Client | null>(null)
   const [loading, setLoading]       = useState(true)
@@ -55,6 +57,10 @@ export default function ClientDetail() {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting]     = useState(false)
   const [form, setForm]             = useState<any>({})
+
+  const [editingGuardian, setEditingGuardian] = useState(false)
+  const [guardianForm, setGuardianForm] = useState({ fullName: "", relationship: "", phone: "", email: "" })
+  const [savingGuardian, setSavingGuardian] = useState(false)
 
   useEffect(() => { loadClient() }, [id])
 
@@ -110,6 +116,47 @@ export default function ClientDetail() {
     }
   }
 
+  async function toggleProBono() {
+    if (!client) return
+    try {
+      await api.patch(`/clients/${id}`, { isProBono: !client.isProBono })
+      loadClient()
+    } catch (err: any) {
+      alert(err.response?.data?.message ?? "Failed to update pro bono status")
+    }
+  }
+
+  function openGuardianEdit(g: Guardian) {
+    setGuardianForm({
+      fullName:     g.fullName ?? "",
+      relationship: g.relationship ?? "",
+      phone:        g.phone ?? "",
+      email:        g.email ?? "",
+    })
+    setEditingGuardian(true)
+  }
+
+  async function saveGuardian(guardianId: string) {
+    setSavingGuardian(true)
+    try {
+      await api.patch(`/guardians/${guardianId}`, guardianForm)
+      setEditingGuardian(false)
+      loadClient()
+    } catch (err: any) {
+      alert(err.response?.data?.message ?? "Failed to update guardian")
+    } finally { setSavingGuardian(false) }
+  }
+
+  async function downloadParentReport() {
+    if (!client) return
+    try {
+      const progressRes = await api.get(`/clients/${id}/progress`)
+      generateParentProgressReportPDF(client, progressRes.data)
+    } catch (err: any) {
+      alert(err.response?.data?.message ?? "Failed to generate report")
+    }
+  }
+
   if (loading) return (
     <Layout title="Client">
       <div style={{ textAlign:"center", padding:60, color:"#8aab9e" }}>Loading...</div>
@@ -161,6 +208,11 @@ export default function ClientDetail() {
               {client.status === "ACTIVE" ? "Mark Inactive" : "Mark Active"}
             </button>
           )}
+          {canEdit && (
+            <button onClick={toggleProBono} style={{ padding:"8px 16px", borderRadius:8, border:"1px solid #d6e8e0", background:"white", fontSize:13, cursor:"pointer", color:"#d97706" }}>
+              {client.isProBono ? "Remove Pro Bono" : "🤝 Mark as Pro Bono"}
+            </button>
+          )}
           {isSuperAdmin && (
             <button onClick={() => setConfirmDelete(true)} style={{ padding:"8px 16px", borderRadius:8, border:"none", background:"#d63f5c", color:"white", fontSize:13, cursor:"pointer" }}>
               🗑 Delete
@@ -169,7 +221,7 @@ export default function ClientDetail() {
         </div>
       </div>
 
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:16 }}>
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
 
         {/* Client info */}
         <div style={{ background:"white", border:"1px solid #d6e8e0", borderRadius:16, padding:"20px 24px" }}>
@@ -184,7 +236,6 @@ export default function ClientDetail() {
             { label:"Allergies",       value: client.allergies || "—" },
             { label:"School",          value: client.schoolName || "—" },
             { label:"Referral Source", value: client.referralSrc || "—" },
-            { label:"✍ Consent Form", href:`/clients/${id}/consent` },
             { label:"Registered",      value: client.registrationDate
                 ? new Date(client.registrationDate).toLocaleDateString("en-KE")
                 : new Date(client.createdAt).toLocaleDateString("en-KE") },
@@ -200,7 +251,15 @@ export default function ClientDetail() {
 
           {/* Guardian */}
           <div style={{ background:"white", border:"1px solid #d6e8e0", borderRadius:16, padding:"20px 24px" }}>
-            <div style={{ fontSize:12, fontWeight:600, color:"#8aab9e", textTransform:"uppercase", marginBottom:14 }}>Parent / Guardian</div>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
+              <div style={{ fontSize:12, fontWeight:600, color:"#8aab9e", textTransform:"uppercase" }}>Parent / Guardian</div>
+              {guardian && canEdit && (
+                <button onClick={() => openGuardianEdit(guardian)}
+                  style={{ fontSize:12, color:"#2563a8", border:"1px solid #d6e8e0", background:"white", cursor:"pointer", padding:"4px 10px", borderRadius:6 }}>
+                  ✏️ Edit
+                </button>
+              )}
+            </div>
             {guardian ? (
               <>
                 {[
@@ -231,11 +290,18 @@ export default function ClientDetail() {
                 { label:"💳 Billing",         href:`/billing?clientId=${id}` },
                 { label:"📋 Assessments",     href:`/assessments?clientId=${id}` },
                 { label:"📈 Progress Charts", href:`/clients/${id}/progress` },
+                { label:"✍ Consent Form",    href:`/clients/${id}/consent` },
               ].map((action, i) => (
                 <a key={i} href={action.href} style={{ padding:"9px 14px", borderRadius:8, border:"1px solid #d6e8e0", background:"#f8faf9", fontSize:13, color:"#1a8c6e", textDecoration:"none", fontWeight:500 }}>
                   {action.label}
                 </a>
               ))}
+              <button
+                onClick={downloadParentReport}
+                style={{ padding:"9px 14px", borderRadius:8, border:"1px solid #d6e8e0", background:"white", fontSize:13, color:"#1a8c6e", cursor:"pointer", fontWeight:500, textAlign:"left" }}
+              >
+                📄 Generate Parent Progress Report
+              </button>
             </div>
           </div>
         </div>
@@ -243,7 +309,7 @@ export default function ClientDetail() {
 
       {/* Goal progress */}
       {allGoals.length > 0 && (
-        <div style={{ background:"white", border:"1px solid #d6e8e0", borderRadius:16, padding:"20px 24px", marginBottom:16 }}>
+        <div style={{ background:"white", border:"1px solid #d6e8e0", borderRadius:16, padding:"20px 24px", marginTop:16 }}>
           <div style={{ fontSize:12, fontWeight:600, color:"#8aab9e", textTransform:"uppercase", marginBottom:14 }}>Goal Progress</div>
           <div style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:12 }}>
             {allGoals.map((g, i) => (
@@ -263,7 +329,7 @@ export default function ClientDetail() {
 
       {/* Recent appointments */}
       {recentAppts.length > 0 && (
-        <div style={{ background:"white", border:"1px solid #d6e8e0", borderRadius:16, overflow:"hidden", marginBottom:16 }}>
+        <div style={{ background:"white", border:"1px solid #d6e8e0", borderRadius:16, overflow:"hidden", marginTop:16 }}>
           <div style={{ padding:"14px 20px", borderBottom:"1px solid #d6e8e0" }}>
             <div style={{ fontSize:13.5, fontWeight:600, color:"#1a2724" }}>Recent Sessions</div>
           </div>
@@ -292,7 +358,7 @@ export default function ClientDetail() {
         </div>
       )}
 
-      {/* Edit modal */}
+      {/* Edit client modal */}
       {editing && (
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:100 }}>
           <div style={{ background:"white", borderRadius:16, padding:28, width:560, maxHeight:"90vh", overflowY:"auto" }}>
@@ -349,6 +415,43 @@ export default function ClientDetail() {
                 <button type="submit" disabled={saving} style={{ padding:"9px 16px", borderRadius:8, border:"none", background:"#1a8c6e", color:"white", fontSize:13, fontWeight:500, cursor:"pointer", opacity:saving?0.7:1 }}>{saving?"Saving...":"Save Changes"}</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit guardian modal */}
+      {editingGuardian && guardian && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:100 }}>
+          <div style={{ background:"white", borderRadius:16, padding:28, width:420 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+              <h2 style={{ fontSize:16, fontWeight:600, color:"#1a2724", margin:0 }}>Edit Guardian</h2>
+              <button onClick={()=>setEditingGuardian(false)} style={{ border:"none", background:"none", fontSize:20, cursor:"pointer", color:"#8aab9e" }}>×</button>
+            </div>
+            <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+              <div>
+                <label style={lbl}>Full name</label>
+                <input value={guardianForm.fullName} onChange={e=>setGuardianForm(f=>({...f,fullName:e.target.value}))} style={inp}/>
+              </div>
+              <div>
+                <label style={lbl}>Relationship</label>
+                <input value={guardianForm.relationship} onChange={e=>setGuardianForm(f=>({...f,relationship:e.target.value}))} style={inp}/>
+              </div>
+              <div>
+                <label style={lbl}>Phone</label>
+                <input value={guardianForm.phone} onChange={e=>setGuardianForm(f=>({...f,phone:e.target.value}))} style={inp}/>
+              </div>
+              <div>
+                <label style={lbl}>Email</label>
+                <input value={guardianForm.email} onChange={e=>setGuardianForm(f=>({...f,email:e.target.value}))} style={inp}/>
+              </div>
+            </div>
+            <div style={{ display:"flex", gap:10, justifyContent:"flex-end", marginTop:20 }}>
+              <button onClick={()=>setEditingGuardian(false)} style={{ padding:"9px 16px", borderRadius:8, border:"1px solid #d6e8e0", background:"white", fontSize:13, cursor:"pointer", color:"#4a6359" }}>Cancel</button>
+              <button onClick={()=>saveGuardian(guardian.id)} disabled={savingGuardian}
+                style={{ padding:"9px 16px", borderRadius:8, border:"none", background:"#1a8c6e", color:"white", fontSize:13, fontWeight:500, cursor:"pointer", opacity:savingGuardian?0.7:1 }}>
+                {savingGuardian?"Saving...":"Save Changes"}
+              </button>
+            </div>
           </div>
         </div>
       )}
