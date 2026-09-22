@@ -839,6 +839,7 @@ export function generateAnnualReportPDF(data: {
 
   addFooter(doc)
   doc.save(`Tumaini-Annual-Report-${period.label.replace(/\s/g,"-")}.pdf`)
+  }
 
   export function generateParentProgressReportPDF(client: any, progress: any) {
   const doc = new jsPDF()
@@ -919,5 +920,4 @@ export function generateAnnualReportPDF(data: {
 
   addFooter(doc)
   doc.save(`${client.fullName.replace(/\s+/g,"-")}-Progress-Report.pdf`)
-}
 }
